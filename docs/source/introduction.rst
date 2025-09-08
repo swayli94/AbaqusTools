@@ -49,7 +49,7 @@ AbaqusTools is designed for:
 - **Python Developers** building custom simulation tools and applications
 
 Getting Started
---------------
+---------------
 
 AbaqusTools is designed to work seamlessly with the ``abqpy`` package, which provides comprehensive type hints for ABAQUS Python scripting. This combination allows you to develop ABAQUS automation scripts with full IDE support, code completion, and type checking.
 

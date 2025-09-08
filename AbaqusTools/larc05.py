@@ -740,7 +740,7 @@ class FailureCriteria(object):
         Matrix splitting: 
         
             Shear dominated matrix failure, under longitudinal compression below 
-            |sigma_11|< XC/2, sigma_11<0. 
+            ``|sigma_11|`` < XC/2, sigma_11<0. 
             Failure index equation is evaluated at all possible kink/split angles psi.
             to determine the maximum index value. 
             The stresses are calculated in the fibre misalignment plane m, from the kink-band plane psi.
@@ -749,7 +749,7 @@ class FailureCriteria(object):
         Fibre kinking:
         
             Assumed to result from shear-dominated matrix failure, under significant longitudinal 
-            compression |sigma_11|>= XC/2, sigma_11<0.
+            compression ``|sigma_11|`` >= XC/2, sigma_11<0.
             These stress components are respective to the fibre misalignment frame phi as described for 
             the matrix splitting failure index. 
         
