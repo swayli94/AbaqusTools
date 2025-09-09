@@ -889,8 +889,8 @@ if __name__ == '__main__':
 
     pMesh = {
         'ply_model': 'PlyByPly',        # PlyByPly, ContinuumShell
-        'failure_model': 'LaRC05',
-        'user_subroutine': 'UVARM',
+        'failure_model': None,          # 'LaRC05', None
+        'user_subroutine': None,        # 'UVARM', None
         'composite_ply_thickness': 0.1,
         'num_element_thickness': 1,
         

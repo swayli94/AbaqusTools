@@ -19,15 +19,16 @@ if __name__ == '__main__':
     
     name_job = 'Job_OHT'
     
-    os.system('abaqus cae noGUI=open-hole-test.py')
+    os.system('abaqus cae noGUI=open-hole-compression.py')
     
     clean_temporary_files()
     
-    os.system('abaqus interactive job=%s user=uvarm.f90 cpus=%d'%(name_job, N_CPU))
+    # os.system('abaqus interactive job=%s user=uvarm.f90 cpus=%d'%(name_job, N_CPU)) # failure_model = LaRC05, user_subroutine = UVARM
+    os.system('abaqus interactive job=%s cpus=%d'%(name_job, N_CPU))
     
     clean_temporary_files()
     
-    os.system('abaqus cae noGUI=oht-extract-hole-face.py')
+    os.system('abaqus cae noGUI=extract-hole-face-data.py')
     
     clean_temporary_files()
 

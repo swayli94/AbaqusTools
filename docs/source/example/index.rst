@@ -57,6 +57,7 @@ The example tests the basic functionality of the :py:class:`Part <AbaqusTools.pa
 material assignment, and load application.
 
 **Files:**
+
 - `steel-beam-compression.py`: Main script defining the SteelBeam part and TestModel
 - `mesh-loads.jpg`: Visualization of the meshed beam with applied loads and boundary conditions
 
@@ -93,6 +94,7 @@ degrees of freedom on opposite faces. Master nodes (reference points) are used t
 strains and measure reaction forces.
 
 **Files:**
+
 - `beam-strain-vector-C3D8R.py`: Main script with PBC implementation
 - `run-strain-vectors.py`: Batch script to run all four strain vector cases
 - `theoretical-stiffness.py`: Script to calculate theoretical stiffness values
@@ -145,6 +147,7 @@ The example demonstrates the use of composite layup functionality in AbaqusTools
 - Continuum shell element formulation
 
 **Files:**
+
 - `laminate-strain-vector-SC8R.py`: Main script with composite PBC implementation
 - `run-strain-vectors.py`: Batch script for all strain cases
 - `stiffness-matrix.dat`: Computed composite stiffness matrix
@@ -170,6 +173,7 @@ modeling capabilities including complex geometry creation, progressive damage an
 post-processing:
 
 **Geometry and Loading:**
+
 - **Plate Dimensions**: 60×100×4 mm (from input.txt)
 - **Hole**: Circular hole with 10 mm radius at plate center
 - **Material**: Composite laminate with user-defined layup
@@ -177,12 +181,14 @@ post-processing:
 - **Boundary Conditions**: Fixed bottom edge, applied displacement at top
 
 **Advanced Features:**
+
 - **Complex Geometry**: Automatic hole creation and mesh partitioning around stress concentrations
 - **User Subroutines**: UVARM subroutine for progressive damage analysis
 - **Failure Analysis**: Implementation of composite failure criteria
 - **Post-Processing**: Automated extraction of stress fields and failure indices
 
 **Files:**
+
 - `open-hole-compression.py`: Main script (973 lines) with comprehensive modeling
 - `input.txt`: Geometry parameters and loading conditions
 - `run-uvarm.py`: Batch script with user subroutine compilation
@@ -227,6 +233,8 @@ post-processing:
     
     # Or run individual components
     abaqus cae script=open-hole-compression.py
-    abaqus interactive job=Job_OHT user=uvarm.f90 cpus=4
+    abaqus interactive job=Job_OHT cpus=4
     abaqus cae script=extract-hole-face-data.py
 
+    # Or run with user subroutine
+    abaqus job=Job_OHT user=uvarm.f90 cpus=4
