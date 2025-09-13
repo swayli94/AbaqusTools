@@ -761,7 +761,18 @@ class TestModel(Model):
         
         self.model = mdb.models[str(self.name_model)]
 
-        self.create_material_IM785517()
+        if self.pMesh['ply_model'] == 'ContinuumShell':
+        
+            self.create_material_IM785517(elastic_type='LAMINA')
+        
+        elif self.pMesh['ply_model'] == 'PlyByPly':
+            
+            self.create_material_IM785517(elastic_type='ENGINEERING_CONSTANTS')
+        
+        else:
+            
+            raise ValueError('Unknown ply model: %s'%(self.pMesh['ply_model']))
+        
         self.create_section_IM785517()
 
     def setup_parts(self):
@@ -840,7 +851,7 @@ class TestModel(Model):
         else:
             self.model.fieldOutputRequests['F-Output-1'].setValues(variables=variables1, numIntervals=numIntervals)
         
-        # self.setup_field_outputs_composite_layup(numIntervals=numIntervals)
+        self.setup_field_outputs_composite_layup(frequency=0)
         
     def setup_field_outputs_composite_layup(self, frequency=1, numIntervals=0):
         '''
@@ -853,7 +864,7 @@ class TestModel(Model):
         name_output = 'FO-layup'
         
         self.model.FieldOutputRequest(name=name_output, 
-            createStepName='Loading', variables=('S', 'E', 'SDV'), frequency=frequency,
+            createStepName='Loading', variables=('S', 'E', 'U', 'SDV'), frequency=frequency,
             layupNames=('plate.partition_circle', ), 
             layupLocationMethod=ALL_LOCATIONS, rebar=EXCLUDE)
         
@@ -969,4 +980,6 @@ if __name__ == '__main__':
     model.build()
     model.save_cae('OHT.cae')
     model.write_job_inp()
-    model.write_IM785517_property_table_inp(method='UVARM', fname_input=model.name_job+'.inp')
+    
+    if pMesh['user_subroutine'] == 'UVARM':
+        model.write_IM785517_property_table_inp(method='UVARM', fname_input=model.name_job+'.inp')

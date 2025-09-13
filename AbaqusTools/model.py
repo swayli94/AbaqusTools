@@ -463,14 +463,29 @@ class Model(object):
 
     #* =============================================
     #* Abaqus Property functions
-    def create_material_IM785517(self):
+    def create_material_IM785517(self, elastic_type='LAMINA'):
         '''
         Create material: IM7/8551-7
+        
+        Parameters
+        --------------
+        elastic_type: str
+            'LAMINA' or 'ENGINEERING_CONSTANTS'
         '''
         self.model.Material(name='IM7/8551-7', 
                             description='https://doi.org/10.1177/0021998312454478')
-        self.model.materials['IM7/8551-7'].Elastic(type=LAMINA, 
-            table=((165000.0, 8400.0, 0.34, 5600.0, 5600.0, 2800.0), ))
+        
+        if elastic_type == 'LAMINA':
+            self.model.materials['IM7/8551-7'].Elastic(type=LAMINA, 
+                table=((165000.0, 8400.0, 0.34, 5600.0, 5600.0, 2800.0), ))
+        
+        elif elastic_type == 'ENGINEERING_CONSTANTS':
+            self.model.materials['IM7/8551-7'].Elastic(type=ENGINEERING_CONSTANTS, 
+                table=((165000.0, 8400.0, 8400.0, 0.34, 0.34, 0.5, 5600.0, 5600.0, 2800.0), ))
+        
+        else:
+            raise Exception
+        
         
         if 'failure_model' not in self.pMesh:
             return
