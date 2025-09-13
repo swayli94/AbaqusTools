@@ -472,7 +472,10 @@ class Model(object):
         self.model.materials['IM7/8551-7'].Elastic(type=LAMINA, 
             table=((165000.0, 8400.0, 0.34, 5600.0, 5600.0, 2800.0), ))
         
-        if self.pMesh['failure_model']=="LaRC05":
+        if 'failure_model' not in self.pMesh:
+            return
+        
+        elif self.pMesh['failure_model']=="LaRC05":
             '''
             When the model runs with LaRC05 user material (UMAT), user-defined output variables (UVARM).
             
@@ -517,10 +520,6 @@ class Model(object):
             
             self.model.materials['IM7/8551-7'].hashinDamageInitiation.DamageEvolution(
                 type=ENERGY, table=((92.0, 80.0, 0.21, 0.8), ))
-            
-        else:
-            
-            pass
 
     def create_material_steel(self, unit_length='mm'):
         '''

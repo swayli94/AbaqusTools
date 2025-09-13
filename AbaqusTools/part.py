@@ -941,7 +941,7 @@ class Part(object):
         
             thickness = [ply_thickness for _ in range(num_ply)]
 
-            valid = np.sum(thickness)*ratio*eNum_thickness == total_thickness
+            valid = np.isclose(np.sum(thickness)*ratio*eNum_thickness, total_thickness)
         
             if not valid and self.raise_exception:
                 print('Error: Set [%s]'%(name_set))
@@ -964,7 +964,8 @@ class Part(object):
     def set_CompositeLayup_of_set(self, myPrt, name_set, total_thickness, ply_angle, 
                     eNum_thickness=1, symmetric=True, numIntPoints=3, name_csys_datum=None, 
                     stackDirection=None, normalDirection=None,
-                    rotation_angle=None, material='IM7/8551-7'):
+                    rotation_angle=None, material='IM7/8551-7',
+                    elementType='continuum shell'):
         '''
         Edit Composite Layup for a set.
         
@@ -1015,6 +1016,9 @@ class Part(object):
             
         material: str
             name of the composite material. It is 'IM7/8551-7' by default.
+            
+        elementType: str
+            'continuum shell', 'shell'
         '''
         if name_set not in myPrt.sets.keys():
             return        
@@ -1022,8 +1026,16 @@ class Part(object):
         # CompositeLayup object
         # https://docs.software.vt.edu/abaqusv2022/English/?show=SIMACAEKERRefMap/simaker-c-compositelayuppyc.htm
         
-        compositeLayup = myPrt.CompositeLayup(name=name_set, 
-                        description='', elementType=CONTINUUM_SHELL, symmetric=symmetric)
+        if elementType == 'continuum shell':
+            compositeLayup = myPrt.CompositeLayup(name=name_set, 
+                description='', elementType=CONTINUUM_SHELL, symmetric=symmetric)
+            
+        elif elementType == 'shell':
+            compositeLayup = myPrt.CompositeLayup(name=name_set, description='', elementType=SHELL, 
+                offsetType=MIDDLE_SURFACE, symmetric=symmetric, 
+                thicknessAssignment=FROM_SECTION)
+        else:
+            raise Exception
         
         # CompositeShellSection object
         # https://docs.software.vt.edu/abaqusv2022/English/?show=SIMACAEKERRefMap/simaker-c-compositeshellsectioncpp.htm
@@ -1038,9 +1050,17 @@ class Part(object):
         # The thickness modulus of a layer is twice the initial in-plane elastic shear modulus based on the material definition 
         # for that layer in the initial configuration.
         #
-        compositeLayup.Section(preIntegrate=OFF, 
+        if elementType == 'continuum shell':
+            compositeLayup.Section(preIntegrate=OFF, 
                         integrationRule=SIMPSON, poissonDefinition=DEFAULT, 
                         thicknessModulus=None, temperature=GRADIENT, useDensity=OFF)
+    
+        elif elementType == 'shell':
+            compositeLayup.Section(preIntegrate=OFF, integrationRule=SIMPSON, 
+                        thicknessType=UNIFORM, poissonDefinition=DEFAULT, temperature=GRADIENT, 
+                        useDensity=OFF)
+        else:
+            raise Exception
     
         # MaterialOrientation object
         # https://docs.software.vt.edu/abaqusv2022/English/?show=SIMACAEKERRefMap/simaker-c-materialorientationpyc.htm
@@ -1150,7 +1170,7 @@ class Part(object):
     def set_element_type_of_part(myPrt, name_set=None, kind='continuum shell', elemLibrary='standard', 
                         hourglassControl='default', maxDegradation=None):
         '''
-        Set element type for a part.
+        Set element type for a part or a set.
         
         Parameters
         --------------
@@ -1158,7 +1178,7 @@ class Part(object):
             name of the set for the element type, or None for the whole part
             
         kind: str
-            'continuum shell', '3D stress', 'Cohesive'
+            'continuum shell', '3D stress', 'Cohesive', 'shell'
             
         elemLibrary: str
             'standard' for static simulation, 
@@ -1195,6 +1215,8 @@ class Part(object):
         else:
             raise Exception
         
+        region_type = None
+        
         if kind=='continuum shell':
             
             if maxDegradation is None:
@@ -1207,6 +1229,8 @@ class Part(object):
                 
             elemType2 = mesh.ElemType(elemCode=SC6R, elemLibrary=elemLibrary)
             elemType3 = mesh.ElemType(elemCode=UNKNOWN_TET, elemLibrary=elemLibrary)
+            elemTypes = (elemType1, elemType2, elemType3)
+            region_type = 'cells'
             
         elif kind=='3D stress': # (solid cells)
             
@@ -1216,23 +1240,45 @@ class Part(object):
                                         distortionControl=DEFAULT)
             elemType2 = mesh.ElemType(elemCode=C3D6, elemLibrary=elemLibrary)
             elemType3 = mesh.ElemType(elemCode=C3D4, elemLibrary=elemLibrary)
+            elemTypes = (elemType1, elemType2, elemType3)
+            region_type = 'cells'
             
         elif kind=='Cohesive': # (cohesive cells)
             
             elemType1 = mesh.ElemType(elemCode=COH3D8, elemLibrary=STANDARD, viscosity=1e-05)
             elemType2 = mesh.ElemType(elemCode=COH3D6, elemLibrary=STANDARD)
             elemType3 = mesh.ElemType(elemCode=UNKNOWN_TET, elemLibrary=STANDARD)
+            elemTypes = (elemType1, elemType2, elemType3)
+            region_type = 'cells'
+            
+        elif kind=='shell':
+            
+            elemType1 = mesh.ElemType(elemCode=S4R, elemLibrary=elemLibrary, 
+                secondOrderAccuracy=OFF, hourglassControl=hourglassControl)
+            elemType2 = mesh.ElemType(elemCode=S3, elemLibrary=elemLibrary)
+            elemTypes = (elemType1, elemType2)
+            region_type = 'faces'
             
         else:
             
             raise Exception
 
         # Assign element types
-        if name_set is None:
-            regions = (myPrt.cells,)
+        if region_type == 'cells':
+            if name_set is None:
+                regions = (myPrt.cells,)
+            else:
+                regions = (myPrt.sets[name_set].cells,)
+        
+        elif region_type == 'faces':
+            if name_set is None:
+                regions = (myPrt.faces,)
+            else:
+                regions = (myPrt.sets[name_set].faces,)
+                
         else:
-            regions = (myPrt.sets[name_set].cells,)
+            raise Exception
         
         myPrt.setElementType(regions=regions, 
-                                elemTypes=(elemType1, elemType2, elemType3))
+                                elemTypes=elemTypes)
 
