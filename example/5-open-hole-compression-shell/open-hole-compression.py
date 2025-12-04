@@ -475,10 +475,10 @@ class TestModel(Model):
         
         https://docs.software.vt.edu/abaqusv2022/English/?show=SIMACAEKERRefMap/simaker-c-fieldoutputrequestpyc.htm
         '''
-        self.model.fieldOutputRequests['F-Output-1'].setValues(variables=('S', 'E', 'U', 'RF'), frequency=LAST_INCREMENT)
+        self.model.fieldOutputRequests['F-Output-1'].setValues(variables=('S', 'E', 'U'), frequency=LAST_INCREMENT)
         
         self.model.FieldOutputRequest(name='FO-layup', 
-            createStepName='Loading', variables=('S', 'E', 'SE', 'SF', 'SDV'), frequency=LAST_INCREMENT,
+            createStepName='Loading', variables=('S', 'TSHR', 'E', 'SE'), frequency=LAST_INCREMENT,
             layupNames=('plate.all', ), 
             layupLocationMethod=ALL_LOCATIONS, rebar=EXCLUDE)
 

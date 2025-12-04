@@ -1,6 +1,8 @@
 
-
+*.bat
 *.pyc
 
+backup/
 build/
-temp
+temp*
+

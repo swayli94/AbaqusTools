@@ -28,7 +28,7 @@ if __name__ == '__main__':
     
     clean_temporary_files()
     
-    os.system('abaqus cae noGUI=extract-hole-face-data.py')
+    os.system('abaqus cae noGUI=extract-data.py')
     
     clean_temporary_files()
 

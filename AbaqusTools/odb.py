@@ -18,6 +18,7 @@ if IS_ABAQUS:
     from abaqusConstants import *
     from symbolicConstants import *
     from caeModules import *
+    from viewerModules import *
     import mesh
     import odbAccess
 
@@ -47,6 +48,8 @@ class OdbOperation(object):
         
         #* Loads odb file and create a new Odb object
         session.openOdb(name=self.name_job, path=self.name_job)
+        self._odb = session.odbs[self.name_job]
+        session.viewports['Viewport: 1'].setValues(displayedObject=self._odb)
     
     @property
     def odb(self):
@@ -57,7 +60,7 @@ class OdbOperation(object):
         
         https://docs.software.vt.edu/abaqusv2022/English/?show=SIMACAEKERRefMap/simaker-c-odbpyc.htm
         '''
-        return session.odbs[self.name_job]
+        return self._odb
     
     def get_instance(self, name_instance):
         '''
@@ -123,7 +126,6 @@ class OdbOperation(object):
             return instance.nodes
         
         elif name_set is not None and name_surface is not None:
-            print('>>> --------------------')
             print('Error [OdbOperation.get_nodes]: ')
             print('    Do not input [name_set] and [name_surface] at the same time: [%s], [%s]', name_set, name_surface)
             raise Exception
@@ -179,7 +181,6 @@ class OdbOperation(object):
             return instance.elements
         
         elif name_set is not None and name_surface is not None:
-            print('>>> --------------------')
             print('Error [OdbOperation.get_elements]: ')
             print('    Do not input [name_set] and [name_surface] at the same time: [%s], [%s]', name_set, name_surface)
             raise Exception
@@ -339,7 +340,6 @@ class OdbOperation(object):
         fieldOutput, position, _ = self.get_fieldOutput(variable=variable)
         
         if not position == 'NODAL':
-            print('>>> --------------------')
             print('Error [OdbOperation.create_node_index_mapping]: ')
             print('    Variable [%s] is stored in [%s] instead of NODAL'%(variable, position))
             raise Exception
@@ -402,7 +402,6 @@ class OdbOperation(object):
         fieldOutput, position, _ = self.get_fieldOutput(variable=variable)
         
         if not position == 'INTEGRATION_POINT':
-            print('>>> --------------------')
             print('Error [OdbOperation.create_element_index_mapping]: ')
             print('    Variable [%s] is stored in [%s] instead of INTEGRATION_POINT'%(variable, position))
             raise Exception
@@ -526,6 +525,90 @@ class OdbOperation(object):
 
         return element_labels, indices_fieldOutput
     
+    def convert_IdxFO_to_Label(self, index_fieldOutput, label_type='node'):
+        '''
+        Convert index_fieldOutput to element/node labels.
+        The nodes/elements must be in the same instance.
+        
+        Parameters
+        --------------
+        index_fieldOutput: int or list[int]
+            index of the node/element in the fieldOutput.
+        
+        label_type: str
+            type of the label, 'node' or 'element'.
+        
+        Returns
+        --------------
+        labels: int or list[int]
+            label(s) of the node/element.
+            
+        name_instance: str
+            name of the instance that the node/element belongs to.
+        '''
+        name_instances = []
+        name_instance = None
+        
+        if label_type == 'node':
+        
+            if self.mapping_node_index2label is None:
+                self.create_node_index_mapping()
+            
+            if isinstance(index_fieldOutput, int):
+
+                name_instance, labels = self.mapping_node_index2label[index_fieldOutput]
+                    
+            else:
+                
+                labels = []
+                for i_node in range(len(index_fieldOutput)):
+                    
+                    name_instance, node_label = self.mapping_node_index2label[index_fieldOutput[i_node]]
+                    labels.append(node_label)
+                    
+                    # Check if the nodes are in the same instance
+                    if len(name_instances) == 0:
+                        name_instances.append(name_instance)
+                    else:
+                        if name_instance not in name_instances:
+                            print('Error [convert_IdxFO_to_Label]: the nodes are not in the same instance')
+                            print('    name_instances:', name_instances)
+                            raise Exception
+        
+        elif label_type == 'element':
+    
+            if self.mapping_elem_index2label is None:
+                self.create_element_index_mapping()
+            
+            if isinstance(index_fieldOutput, int):
+
+                name_instance, labels = self.mapping_elem_index2label[index_fieldOutput]
+                    
+            else:
+                
+                labels = []
+                for i_elem in range(len(index_fieldOutput)):
+                    
+                    name_instance, element_label = self.mapping_elem_index2label[index_fieldOutput[i_elem]]
+                    labels.append(element_label)
+                    
+                    # Check if the elements are in the same instance
+                    if len(name_instances) == 0:
+                        name_instances.append(name_instance)
+                    else:
+                        if name_instance not in name_instances:
+                            print('Error [convert_IdxFO_to_Label]: the elements are not in the same instance')
+                            print('    name_instances:', name_instances)
+                            raise Exception
+                    
+        else:
+            print('Error [convert_IdxFO_to_Label]: invalid `label_type`')
+            print('    label_type: [%s]'%(label_type))
+            print('    Only "node" and "element" are allowed.')
+            raise Exception
+    
+        return labels, name_instance
+    
     #* Probe value of node/element
     def probe_node_values(self, step='Loading', frame=-1, variable='U', component=None, index_fieldOutput=0):
         '''
@@ -558,7 +641,6 @@ class OdbOperation(object):
 
         if not position == 'NODAL':
             
-            print('>>> --------------------')
             print('Error [probe_node_values]: the variable is not stored in nodes')
             print('    Step: [%s]; Frame: [%d]'%(step, frame))
             print('    The location of field data for [%s] is [%s]'%(variable, position))
@@ -629,7 +711,6 @@ class OdbOperation(object):
 
         if not position == 'INTEGRATION_POINT':
             
-            print('>>> --------------------')
             print('Error [probe_element_values]: the variable is not stored in elements')
             print('    Step: [%s]; Frame: [%d]'%(step, frame))
             print('    The location of field data for [%s] is [%s]'%(variable, position))
@@ -700,21 +781,12 @@ class OdbOperation(object):
         
         #* Convert index to label
         if index_fieldOutput is not None:
-            
-            if self.mapping_node_index2label is None:
-                self.create_node_index_mapping()
-            
-            if isinstance(index_fieldOutput, int):
-
-                name_instance, node_label = self.mapping_node_index2label[index_fieldOutput]
-                    
-            else:
-                
-                node_label = []
-                for i_node in range(len(index_fieldOutput)):
-                    
-                    _, label = self.mapping_node_index2label[index_fieldOutput[i_node]]
-                    node_label.append(label)
+            node_label, _name_instance = self.convert_IdxFO_to_Label(index_fieldOutput, label_type='node')
+            if not _name_instance == name_instance:
+                print('Error [probe_node_coordinate]: the nodes are not in the specified instance')
+                print('    Input name_instance: %s'%(name_instance))
+                print('    Found name_instance: %s'%(_name_instance))
+                raise Exception
         
         #* Get coordinates
         if isinstance(node_label, int):
@@ -821,21 +893,12 @@ class OdbOperation(object):
         '''
         #* Convert index to label
         if index_fieldOutput is not None:
-            
-            if self.mapping_elem_index2label is None:
-                self.create_element_index_mapping()
-            
-            if isinstance(index_fieldOutput, int):
-
-                name_instance, element_label = self.mapping_elem_index2label[index_fieldOutput]
-                    
-            else:
-                
-                element_label = []
-                for i_elem in range(len(index_fieldOutput)):
-                    
-                    _, label = self.mapping_elem_index2label[index_fieldOutput[i_elem]]
-                    element_label.append(label)
+            element_label, _name_instance = self.convert_IdxFO_to_Label(index_fieldOutput, label_type='element')
+            if not _name_instance == name_instance:
+                print('Error [get_element_connectivity]: the elements are not in the specified instance')
+                print('    Input name_instance: %s'%(name_instance))
+                print('    Found name_instance: %s'%(_name_instance))
+                raise Exception
 
         #* Get connectivity
         instance = self.get_instance(name_instance)
@@ -860,5 +923,318 @@ class OdbOperation(object):
                 instanceNames.append(list(element.instanceNames))
         
         return connectivity, instanceNames, element_label
+
+    #* Get zero-thickness shell element data from `Tools -> XY Data`
+    def probe_shell_element_thickness_values(self, variable='E', component='E11',
+                                    name_instance='PLATE', element_label=1, index_fieldOutput=None):
+        '''
+        Probe zero-thickness shell elements' thickness-direction-distributed data using `Tools -> XY Data`.
+        Need to provide either the element label in its instance, or its index in the fieldOutput.
+        
+        Parameters
+        --------------
+        variable: str
+            name of the output variable, e.g., 'E', 'S', 'SE', 'SK', 'TSHR13', 'TSHR23'.
+        
+        component: None, or str
+            name of the component, e.g., 'E11', 'S11', etc.
+            If the variable has no components, the value is None.
+            
+        name_instance: str
+            name of an instance in CAPITAL letters, e.g., 'ASSEMBLY'.
+        
+        element_label: int or list[int]
+            label of element in the instance, it starts from 1.
+            It equals the element index in the OdbMeshElementArray `elements` plus 1.
+        
+        index_fieldOutput: int or list[int]
+            index of the element in the fieldOutputs, which contains all elements from all instances.
+        
+        Returns
+        ---------------
+        values: ndarray [n_thickness, 2] or [n_element, n_thickness, 2]
+            an array of values through the thickness, i.e., [(coordinate, value), ...].
+        '''
+        #* Convert index to label
+        if index_fieldOutput is not None:
+            element_label, _name_instance = self.convert_IdxFO_to_Label(index_fieldOutput, label_type='element')
+            if not _name_instance == name_instance:
+                print('Error [probe_shell_element_thickness_values]: the elements are not in the specified instance')
+                print('    Input name_instance: %s'%(name_instance))
+                print('    Found name_instance: %s'%(_name_instance))
+                raise Exception
+            
+        #* Get data: Dict[int, ndarray]
+        xyDataDict = OdbOperation._get_XYDataFromShellThickness_from_element_label(
+            self.odb, variable, component, name_instance, element_label)
+        
+        #* Organize data
+        if isinstance(element_label, int):
+            values = xyDataDict[element_label]
+        else:
+            values = []
+            for i_element in range(len(element_label)):
+                values.append(xyDataDict[element_label[i_element]])
+            values = np.array(values)
+    
+        return values
+    
+    @staticmethod
+    def _get_XYDataFromShellThickness_from_element_label(odb, variable='E', component='E11', name_instance='PLATE', element_label=1):
+        '''
+        Get data from `Tools -> XY Data -> Create XY Data -> Thickness -> Variables & Elements`.
+        
+        Parameters
+        --------------
+        odb: Odb object
+            the output database of the job.
+        
+        variable: str
+            name of the output variable, e.g., 'E', 'S', 'SE', 'SK', 'TSHR13', 'TSHR23'.
+        
+        component: None, or str
+            name of the component, e.g., 'E11', 'S11', etc.
+            If the variable has no components, the value is None.
+            
+        name_instance: str
+            name of an instance in CAPITAL letters, e.g., 'PLATE'.
+        
+        element_label: int or list[int]
+            label of element in the instance, it starts from 1.
+            It equals the element index in the OdbMeshElementArray `elements` plus 1.
+            
+        Returns
+        --------------
+        xyDataDict: Dict[int, ndarray]
+            the variable components of all elements in the element set.
+            The key is the element label in the instance,
+            the value is a 2-d array of the data through the thickness, i.e., [(coordinate, value), ...].
+            
+        Available variables
+        ---------------------
+        E: Strain (E11, E22, E33, E12, Mises)
+        S: Stress (S11, S22, S33, S12, Mises)
+        SE: Section strain (SE1, SE2, SE6, SE3, SE4, SE5)
+        SK: Section curvature (SK2, SK1, SK3)
+        TSHR13: Transverse shear stress in the 1-3 plane (No component)
+        TSHR23: Transverse shear stress in the 2-3 plane (No component)
+        
+        References
+        --------------
+        https://abaqus-docs.mit.edu/2017/English/SIMACAEKERRefMap/simaker-c-xydatapyc.htm#simaker-xydataxydatafromshellthicknesspyc
+        '''
+        if isinstance(element_label, int):
+            element_label = [element_label]
+        labels = tuple([str(val) for val in element_label])
+
+        if component is None:
+            # For variable without components, use the variable name as the second key
+            xyList = visualization.XYDataFromShellThickness(
+                odb=odb,
+                outputPosition=INTEGRATION_POINT,
+                variable=((variable, INTEGRATION_POINT), ),
+                elementLabels=((name_instance, labels), ))
+        else:
+            # For variable with components, use the component name as the second key
+            xyList = visualization.XYDataFromShellThickness(
+                odb=odb,
+                outputPosition=INTEGRATION_POINT,
+                variable=((variable, INTEGRATION_POINT, ((COMPONENT, component), )), ),
+                elementLabels=((name_instance, labels), ))
+                
+        xyDataDict = OdbOperation._get_xyData_from_xyList(xyList, name_instance)
+
+        return xyDataDict
+
+    @staticmethod
+    def _get_XYDataFromShellThickness_from_element_set(odb, variable='E', component='E11', name_instance='PLATE', name_set='ALL'):
+        '''
+        Get data from `Tools -> XY Data -> Create XY Data -> Thickness -> Variables & Elements`.
+        
+        Parameters
+        --------------
+        odb: Odb object
+            the output database of the job.
+            
+        variable: str
+            name of the output variable, e.g., 'E', 'S', 'SE', 'SK', 'TSHR13', 'TSHR23'.
+        
+        component: None, or str
+            name of the component, e.g., 'E11', 'S11', etc.
+            If the variable has no components, the value is None.
+            
+        name_instance: str
+            name of an instance in CAPITAL letters, e.g., 'PLATE'.
+            
+        name_set: str
+            name of the set in the instance, e.g., 'ALL'.
+            
+        Returns
+        --------------
+        xyDataDict: Dict[int, ndarray]
+            the variable components of all elements in the element set.
+            The key is the element label in the instance,
+            the value is a 2-d array of the data through the thickness, i.e., [(coordinate, value), ...].
+            
+        Available variables
+        ---------------------
+        E: Strain (E11, E22, E33, E12, Mises)
+        S: Stress (S11, S22, S33, S12, Mises)
+        SE: Section strain (SE1, SE2, SE6, SE3, SE4, SE5)
+        SK: Section curvature (SK2, SK1, SK3)
+        TSHR13: Transverse shear stress in the 1-3 plane (No component)
+        TSHR23: Transverse shear stress in the 2-3 plane (No component)
+        
+        References
+        --------------
+        https://abaqus-docs.mit.edu/2017/English/SIMACAEKERRefMap/simaker-c-xydatapyc.htm#simaker-xydataxydatafromshellthicknesspyc
+        '''
+        element_set_name = name_instance + '.' + name_set
+        
+        if component is None:
+            # For variable without components, use the variable name as the second key
+            xyList = visualization.XYDataFromShellThickness(
+                odb=odb,
+                outputPosition=INTEGRATION_POINT,
+                variable=((variable, INTEGRATION_POINT), ),
+                elementSets=(element_set_name, ))
+        else:
+            # For variable with components, use the component name as the second key
+            xyList = visualization.XYDataFromShellThickness(
+                odb=odb,
+                outputPosition=INTEGRATION_POINT,
+                variable=((variable, INTEGRATION_POINT, ((COMPONENT, component), )), ),
+                elementSets=(element_set_name, ))
+        
+        xyDataDict = OdbOperation._get_xyData_from_xyList(xyList, name_instance)
+                    
+        return xyDataDict
+
+    @staticmethod
+    def _get_xyData_from_xyList(xyList, name_instance=None):
+        '''
+        Get the data from the xyList.
+        
+        Parameters
+        --------------
+        xyList: List[xyData]
+            the list of xyData objects.
+            
+        name_instance: None, or str
+            name of an instance in CAPITAL letters, e.g., 'PLATE'.
+            This parameter is only used to check if the instance name in the positionDescription is correct.
+            
+        Returns
+        --------------
+        xyDataDict: Dict[int, ndarray]
+            the variable components of all elements in the element set.
+            The key is the element label in the instance,
+            the value is a 2-d array of the data through the thickness, i.e., [(coordinate, value), ...].
+        '''
+        xyDataDict = {}
+        
+        for xyData in xyList:    
+            positionDescription = xyData.positionDescription
+            
+            # Extract the instance name and element label from the positionDescription
+            # Example: ' at part instance PLATE element 288 integration point 1'
+            element_label = int(positionDescription.split(' element ')[1].split(' ')[0])
+            
+            if name_instance is not None:
+                _name_instance = positionDescription.split(' at part instance ')[1].split(' element ')[0]
+                if _name_instance != name_instance:
+                    print('>>> Error [OdbOperation._get_xyData_from_xyList]')
+                    print('    Expected instance name: %s'%(name_instance))
+                    print('    Found instance name: %s'%(_name_instance))
+                    print('    Element label: %d'%(element_label))
+                    print('    Position description: %s'%(positionDescription))
+                    raise Exception('Instance name mismatch')
+            
+            n_point = len(xyData)
+            data = np.zeros((n_point, 2))
+            for i_point in range(n_point):
+                data[i_point, 0] = xyData[i_point][1] # coordinate in the thickness direction
+                data[i_point, 1] = xyData[i_point][0] # value of the variable component
+            
+            xyDataDict[element_label] = data
+        
+        return xyDataDict
+    
+    
+#* ===============================
+#* Example functions
+#* ===============================
+
+def get_node_values_on_set(name_job, name_instance, name_set, variable='U'):
+    '''
+    Get the variable value of nodes in a set of an instance.
+    
+    Parameters
+    --------------
+    name_job: str
+        name of the job in CAPITAL letters, e.g., 'JOB_OHT'.
+        
+    name_instance: str
+        name of the instance in CAPITAL letters, e.g., 'PLATE'.
+        
+    name_set: str
+        name of the set in CAPITAL letters, e.g., 'FACE_HOLE'.
+        
+    variable: str
+        name of the output variable, e.g., 'U', 'S', 'E', etc.
+        
+    Returns
+    --------------
+    indices_fieldOutput: list[int]
+        indices of the nodes in the fieldOutput.
+        
+    coordinates: ndarray [n_node, n_dim]
+        the coordinates of the nodes.
+        
+    values: ndarray [n_node, n_comp]
+        the values of the nodes.
+    '''
+    odb = OdbOperation(name_job)
+    node_labels, indices_fieldOutput = odb.get_node_labels_and_indices(name_instance, name_set=name_set)
+    coordinates = odb.probe_node_coordinate(name_instance=name_instance, node_label=node_labels)
+    values = odb.probe_node_values(variable=variable, index_fieldOutput=indices_fieldOutput)
+
+    return indices_fieldOutput, coordinates, values
+
+def get_element_values_on_set(name_job, name_instance, name_set, variable='U'):
+    '''
+    Get the variable value of elements in a set of an instance.
+    
+    Parameters
+    --------------
+    name_job: str
+        name of the job in CAPITAL letters, e.g., 'JOB_OHT'.
+        
+    name_instance: str
+        name of the instance in CAPITAL letters, e.g., 'PLATE'.
+        
+    name_set: str
+        name of the set in CAPITAL letters, e.g., 'FACE_HOLE'.
+        
+    variable: str
+        name of the output variable, e.g., 'U', 'S', 'E', etc.
+        
+    Returns
+    --------------
+    indices_fieldOutput: list[int]
+        indices of the elements in the fieldOutput.
+        
+    coordinates: ndarray [n_element, n_dim]
+        the coordinates of the elements.
+        
+    values: ndarray [n_element, n_comp]
+        the values of the elements.
+    '''
+    odb = OdbOperation(name_job)
+    element_labels, indices_fieldOutput = odb.get_element_labels_and_indices(name_instance, name_set)
+    coordinates = odb.probe_element_center_coordinate(name_instance=name_instance, element_label=element_labels)
+    values = odb.probe_element_values(variable=variable, index_fieldOutput=indices_fieldOutput)
+    
+    return indices_fieldOutput, coordinates, values
 
 
