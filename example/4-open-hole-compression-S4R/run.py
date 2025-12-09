@@ -23,12 +23,11 @@ if __name__ == '__main__':
     
     clean_temporary_files()
     
-    # os.system('abaqus interactive job=%s user=uvarm.f90 cpus=%d'%(name_job, N_CPU)) # failure_model = LaRC05, user_subroutine = UVARM
     os.system('abaqus interactive job=%s cpus=%d'%(name_job, N_CPU))
     
     clean_temporary_files()
     
-    os.system('abaqus cae noGUI=extract-data.py')
+    os.system('abaqus cae noGUI=extract-data-S4R.py')
     
     clean_temporary_files()
 

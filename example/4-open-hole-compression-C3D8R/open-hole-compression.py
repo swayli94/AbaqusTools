@@ -841,10 +841,10 @@ class TestModel(Model):
                     print('    Output frequency is changed to [Evenly spaced time intervals]')
         
         #* Output variables
-        variables1=('S', 'E', 'U', 'RF')
+        variables1=('S', 'E', 'U')
 
         if self.pMesh['user_subroutine'] == 'UVARM':
-            variables1=('S', 'E', 'U', 'RF', 'UVARM')
+            variables1=('S', 'E', 'U', 'UVARM')
 
         if numIntervals <= 0:
             self.model.fieldOutputRequests['F-Output-1'].setValues(variables=variables1, frequency=frequency)
@@ -864,8 +864,8 @@ class TestModel(Model):
         name_output = 'FO-layup'
         
         self.model.FieldOutputRequest(name=name_output, 
-            createStepName='Loading', variables=('S', 'E', 'U', 'SDV'), frequency=frequency,
-            layupNames=('plate.partition_circle', ), 
+            createStepName='Loading', variables=('S', 'E', 'SDV'), frequency=frequency,
+            layupNames=('plate.all', ), 
             layupLocationMethod=ALL_LOCATIONS, rebar=EXCLUDE)
         
         if numIntervals > 0:

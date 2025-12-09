@@ -478,7 +478,7 @@ class TestModel(Model):
         self.model.fieldOutputRequests['F-Output-1'].setValues(variables=('S', 'E', 'U'), frequency=LAST_INCREMENT)
         
         self.model.FieldOutputRequest(name='FO-layup', 
-            createStepName='Loading', variables=('S', 'TSHR', 'E', 'SE'), frequency=LAST_INCREMENT,
+            createStepName='Loading', variables=('S', 'TSHR', 'E'), frequency=LAST_INCREMENT,
             layupNames=('plate.all', ), 
             layupLocationMethod=ALL_LOCATIONS, rebar=EXCLUDE)
 

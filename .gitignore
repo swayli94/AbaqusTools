@@ -4,5 +4,7 @@
 
 backup/
 build/
+data/
+figure/
 temp*
 

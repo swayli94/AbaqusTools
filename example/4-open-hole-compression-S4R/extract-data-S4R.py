@@ -25,8 +25,8 @@ if __name__ == '__main__':
     t0 = time.time()
     
     name_job = 'Job_OHT'
-    fname_mean = 'specimen-stress-field-mean.dat'
-    fname_3D = 'specimen-stress-field-3D.dat'
+    fname_mean = 'specimen-stress-field-S4R-mean.dat'
+    fname_3D = 'specimen-stress-field-S4R.dat'
 
     odb = OdbOperation(name_job)
     
@@ -141,8 +141,3 @@ if __name__ == '__main__':
             t2 = time.time()
             print('>>> Number of element: %d, Time = %.2f s'%(n_element, (t2-t1)))
             print(' ')
-        
-    
-
-
-
