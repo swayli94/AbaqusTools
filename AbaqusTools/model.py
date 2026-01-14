@@ -980,6 +980,12 @@ class Model(object):
         name_rp: str
             name of the reference point
         '''
+        if name_rp in self.rootAssembly.features.keys():
+            print('>>> [Reference point]:')
+            print('    The reference point %s already exists'%(name_rp))
+            print('    Abaqus default name is "RP-1", do not use it.')
+            raise Exception()
+        
         self.rootAssembly.ReferencePoint(point=(x, y, z))
         self.rootAssembly.features.changeKey(fromName='RP-1', toName=name_rp)
     

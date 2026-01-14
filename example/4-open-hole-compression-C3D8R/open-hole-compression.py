@@ -690,7 +690,7 @@ class Plate(Part):
         ]
 
         #* Create set
-        self.create_geometry_set('ply-%d'%(i_ply+1), self.name_part, points, geometry='cell')
+        self.create_geometry_set('ply-%d'%(i_ply+1), points, geometry='cell')
 
     def _create_mesh_ply(self):
 

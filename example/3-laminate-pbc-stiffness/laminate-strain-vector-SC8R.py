@@ -20,7 +20,7 @@ import sys
 import numpy as np
 
 from AbaqusTools import Part, Model, OdbOperation
-from AbaqusTools.pbc import PeriodicBC
+from AbaqusTools.pbc import PBC_Beam
 
 
 class Beam(Part):
@@ -191,7 +191,7 @@ class TestModel(Model):
                 label_forbidden = []
             last_instance = name_instance
             
-            name_mfn, name_sfn = PeriodicBC.create_node_sets(self.model, name_instance, 
+            name_mfn, name_sfn = PBC_Beam.create_node_sets(self.model, name_instance, 
                                         name_master_face, name_slave_face, coords_sorting, name_forbidden_sets, label_forbidden)
             
             self.face_pairs_name_node_sets.append((name_instance, name_mfn, name_sfn))
@@ -210,7 +210,7 @@ class TestModel(Model):
         #* Create constraint equations
         for name_instance, name_mfn, name_sfn in self.face_pairs_name_node_sets:
             
-            PeriodicBC.create_constraints_strain_vector(self.model, 'PBC_b-%s'%(name_instance), 
+            PBC_Beam.create_constraints_strain_vector(self.model, 'PBC_b-%s'%(name_instance), 
                             name_mfn, name_sfn, 'MasterNode-1', 'MasterNode-2',
                             neutral_axis_x=self.neutral_axis_x, neutral_axis_y=self.neutral_axis_y)
     
@@ -218,13 +218,13 @@ class TestModel(Model):
         mp = self.beam_0
         
         pt = (0.0, mp.length_y, 0)
-        mp.create_geometry_set('X0Y1Z0', 'beam_0', pt, geometry='vertex', getClosest=False)
+        mp.create_geometry_set('X0Y1Z0', pt, geometry='vertex', getClosest=False)
         
         pt = (mp.length_x, 0.0, 0)
-        mp.create_geometry_set('X1Y0Z0', 'beam_0', pt, geometry='vertex', getClosest=False)
+        mp.create_geometry_set('X1Y0Z0', pt, geometry='vertex', getClosest=False)
         
         pt = (mp.length_x, mp.length_y, 0)
-        mp.create_geometry_set('X1Y1Z0', 'beam_0', pt, geometry='vertex', getClosest=False)
+        mp.create_geometry_set('X1Y1Z0', pt, geometry='vertex', getClosest=False)
         
         a = self.rootAssembly
         
@@ -244,7 +244,7 @@ class TestModel(Model):
             amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
         
         
-        u3_MN1, u1_MN2, u2_MN2, u3_MN2 = PeriodicBC.calculate_master_node_displacement_BC(self.strain_vector, self.beam_0.length_z)
+        u3_MN1, u1_MN2, u2_MN2, u3_MN2 = PBC_Beam.calculate_master_node_displacement_BC(self.strain_vector, self.beam_0.length_z)
         
         self.model.DisplacementBC(name='MasterNode1', createStepName='Loading', 
             region=a.sets['MasterNode-1'],

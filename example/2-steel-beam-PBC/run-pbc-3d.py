@@ -13,7 +13,7 @@ from AbaqusTools.functions import clean_pyc_files, clean_temporary_files
 
 COMMAND = 'abaqus cae noGUI='
 
-fname_py = 'beam-strain-vector-C3D8R.py'
+fname_py = 'job-pbc-3d.py'
 
 
 if __name__ == '__main__':
@@ -22,9 +22,9 @@ if __name__ == '__main__':
     
     clean_pyc_files()
 
-    StiffMatrix = np.zeros([4,4])
+    StiffMatrix = np.zeros([6,6])
 
-    for i in range(4):
+    for i in range(6):
         
         print('>>> =============================================')
         t1 = time.time()
@@ -41,8 +41,8 @@ if __name__ == '__main__':
         with open(name_job+'-RF.dat', 'r') as f:
             lines = f.readlines()
             
-            scale = float(lines[10+i].split()[1])
-            for j in range(4):
+            scale = float(lines[12+i].split()[1])
+            for j in range(6):
                 StiffMatrix[j,i] = float(lines[j].split()[1])/scale
         
         t2 = time.time()
@@ -52,8 +52,8 @@ if __name__ == '__main__':
 
 
     with open('stiffness-matrix.dat', 'w') as f:
-        for j in range(4):
-            for i in range(4):
+        for j in range(6):
+            for i in range(6):
                 f.write('%15.3E'%(StiffMatrix[j,i]))
             f.write('\n')
 

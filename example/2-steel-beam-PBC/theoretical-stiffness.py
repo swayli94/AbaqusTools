@@ -30,8 +30,24 @@ if __name__ == '__main__':
     C33 = E*Ix
     C44 = E*Iy
 
+    print('>>> =============================================')
+    print('>>> Theoretical beam stiffness matrix')
+    print('>>> =============================================')
     print('C11 = %.3E'%(C11))
     print('C22 = %.3E'%(C22))
     print('C33 = %.3E'%(C33))
     print('C44 = %.3E'%(C44))
+    print()
 
+    print('>>> =============================================')
+    print('>>> Theoretical material stiffness matrix')
+    print('>>> =============================================')
+
+    lamb = E*PR/(1+PR)/(1-2*PR)
+    
+    print('lambda (Lamé\'s first parameter) = %.3E'%(lamb))
+    print('mu (Shear modulus, G) = %.3E'%(Gz))
+    print('Cii (i=1,2,3) = %.3E'%(lamb+2*Gz))
+    print('Cii (i=4,5,6) = %.3E'%(Gz))
+    print('Cij (i!=j, i,j=1,2,3) = %.3E'%(lamb))
+    print()

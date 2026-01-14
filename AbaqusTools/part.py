@@ -202,19 +202,16 @@ class Part(object):
         '''
         return self.model.parts[name_part]
         
-    def create_geometry_set(self, name_set, name_part, findAt_points, 
+    def create_geometry_set(self, name_set, findAt_points, 
                             geometry='vertex', getClosest=True, searchTolerance=1E-6):
         '''
-        Create a geometry set in Part
+        Create a geometry set in the current part (Part).
         
         Parameters
         ----------------
         name_set: str
             name of the set
-            
-        name_part: str
-            name of the part that the geometry belong to.
-            
+                        
         findAt_points: tuple, or a list of tuple
         
             point coordinates.
@@ -232,7 +229,7 @@ class Part(object):
         searchTolerance: float
             the distance within which the closest object must lie
         '''
-        myPrt = self.model.parts[name_part]
+        myPrt = self.model.parts[self.name_part]
         
         if geometry=='vertex':
             vertices = Part.get_vertices(myPrt, findAt_points, getClosest, searchTolerance)

@@ -21,7 +21,7 @@ if IS_ABAQUS:
 
 class PeriodicBC(NodeOperation):
     '''
-    A class that contains functions to setup periodic boundary conditions (PBCs) in `Model` objects. 
+    Functions to setup periodic boundary conditions (PBCs) in `Model` objects.
     
     Need to define PBCs after `Mesh`, `Assembly` & `Step`.
     
@@ -71,9 +71,12 @@ class PeriodicBC(NodeOperation):
         pass
 
     @staticmethod
-    def exclude_forbidden_nodes_pbc(myMdl, name_instance, master_face_nodes, slave_face_nodes, name_forbidden_sets=[], label_forbidden_nodes=[]):
+    def exclude_forbidden_nodes_pbc(myMdl, name_instance,
+                        master_face_nodes, slave_face_nodes,
+                        name_forbidden_sets=[], label_forbidden_nodes=[]):
         '''
-        Exclude forbidden nodes from the master face, and exclude the corresponding node from the slave face.
+        Exclude forbidden nodes from the master face,
+        and exclude the corresponding node from the slave face.
         
         Parameters
         ---------------
@@ -90,15 +93,11 @@ class PeriodicBC(NodeOperation):
             nodes on the slave face
             
         name_forbidden_sets: list of strings
-        
             name of sets that consists of forbidden nodes.
-            
             It can be a node set, or a geometry set of vertices, edges, or faces.
             
         label_forbidden_nodes: list of integers
-        
             labels of forbidden nodes.
-            
             An overlap between `name_forbidden_sets` and `label_forbidden_nodes` is allowed.
             
         Return
@@ -146,7 +145,10 @@ class PeriodicBC(NodeOperation):
         return label_master_nodes, label_slave_nodes, label_forbidden
 
     @staticmethod
-    def create_node_sets(myMdl, name_instance, name_master_face_set, name_slave_face_set, coords_sorting, name_forbidden_sets=[], label_forbidden_nodes=[]):
+    def create_node_sets(myMdl, name_instance,
+                        name_master_face_set, name_slave_face_set, coords_sorting,
+                        name_forbidden_sets=[], label_forbidden_nodes=[],
+                        name_mfn=None, name_sfn=None):
         '''
         Create node sets on the master/slave faces for the periodic boundary condition.
         
@@ -168,27 +170,21 @@ class PeriodicBC(NodeOperation):
             a tuple contains coordinate indices for sorting nodes, e.g., (0,1), (1,2), (2,0).
             
         name_forbidden_sets: list of strings
-        
             name of sets that consists of forbidden nodes.
-            
             It can be a node set, or a geometry set of vertices, edges, or faces.
             
         label_forbidden_nodes: list of integers
-        
             labels of forbidden nodes.
-            
             An overlap between `name_forbidden_sets` and `label_forbidden_nodes` is allowed.
-        
+            
+        name_mfn, name_sfn: str
+            name of the node sets on the master/slave faces.
+            If None, use default name.
+            
         Return
         ----------------
         name_mfn, name_sfn: str
-            name of the node sets on the master/slave faces
-            
-        Examples
-        ---------------
-        >>> name_mfn, name_sfn = PeriodicBC.create_node_sets( \\
-        >>>     myMdl, name_instance, name_master_face_set, name_slave_face_set, 
-        >>>     coords_sorting, name_forbidden_sets=[], label_forbidden_nodes=[])
+            name of the node sets on the master/slave faces.
         '''
         #* Sort nodes by coordinates to find node pairs automatically
         master_face_nodes = PeriodicBC.get_nodes_from_face(myMdl, name_master_face_set, coords_sorting, name_instance)
@@ -209,9 +205,12 @@ class PeriodicBC(NodeOperation):
             PeriodicBC.exclude_forbidden_nodes_pbc(myMdl, name_instance, master_face_nodes, slave_face_nodes,
                                                 name_forbidden_sets, label_forbidden_nodes)
 
-        name_mfn = 'MFNode-%s-%s'%(name_instance, name_master_face_set)
-        name_sfn = 'SFNode-%s-%s'%(name_instance, name_slave_face_set)
-        
+        #* Node set names
+        if name_mfn is None:
+            name_mfn = 'MFNode-%s-%s'%(name_instance, name_master_face_set)
+        if name_sfn is None:
+            name_sfn = 'SFNode-%s-%s'%(name_instance, name_slave_face_set)
+                
         #* Create node sets
         myMdl.rootAssembly.SetFromNodeLabels(name=name_mfn, nodeLabels=((name_instance, labels_master),), unsorted=True)
         myMdl.rootAssembly.SetFromNodeLabels(name=name_sfn, nodeLabels=((name_instance, labels_slave ),), unsorted=True)
@@ -224,6 +223,12 @@ class PeriodicBC(NodeOperation):
         print('>>>')
         
         return name_mfn, name_sfn
+
+
+class PBC_Beam(PeriodicBC):
+    '''
+    Functions to setup periodic boundary conditions (PBCs) for beam-like structures.
+    '''
 
     @staticmethod
     def create_constraints_strain_vector(myMdl, name_eqn, name_mfn_set, name_sfn_set, name_mn1, name_mn2,
@@ -336,7 +341,7 @@ class PeriodicBC(NodeOperation):
     @staticmethod
     def calculate_master_node_displacement_BC(strain_vector, model_length_z):
         '''
-        Calculate the displacement `u` of master nodes for boundary condition defination.
+        Calculate the displacement `u` of master nodes for boundary condition definition.
 
         Parameters
         ----------------------
@@ -417,3 +422,257 @@ class PeriodicBC(NodeOperation):
         xB = u3_MN3 / u3_MN2 / model_length_z
         return xB
 
+
+class PBC_3DOrthotropic(PeriodicBC):
+    '''
+    Setup periodic boundary conditions (PBCs) to homogenize
+    three-dimensional representative volume elements (RVE) as a 3D orthotropic material.
+
+    The effective 6x6 stiffness matrix `C` (Voigt notation) is as follows,
+    where 1, 2, 3 correspond to x, y, z directions, respectively.
+
+    - {sigma} = C{epsilon}
+    - {sigma} = [sigma11, sigma22, sigma33, sigma23, sigma13, sigma12]^T
+    - {epsilon} = [epsilon11, epsilon22, epsilon33, gamma23, gamma13, gamma12]^T
+    - S = C^{-1} (compliance matrix)
+    - gamma_ij = 2 * epsilon_ij (engineering shear strain, i != j)
+
+    Set 6 reference points (RP), use their displacement component `u1` to represent {epsilon}.
+    
+    - epsilon11 = u1(RP_11)
+    - epsilon22 = u1(RP_22)
+    - epsilon33 = u1(RP_33)
+    - gamma23 = u1(RP_23)
+    - gamma13 = u1(RP_13)
+    - gamma12 = u1(RP_12)
+    
+    The engineering constants are:
+    
+    - E11 = 1 / S11
+    - E22 = 1 / S22
+    - E33 = 1 / S33
+    - G23 = 1 / S44
+    - G13 = 1 / S55
+    - G12 = 1 / S66
+    - niu12 = - S12 / S11
+    - niu13 = - S13 / S11
+    - niu23 = - S23 / S22
+
+    '''
+
+    @staticmethod
+    def create_constraints_strain_vector(myMdl, name_eqn='PBC3D',
+                name_mfn_x_set='MFn-X', name_sfn_x_set='SFn-X',
+                name_mfn_y_set='MFn-Y', name_sfn_y_set='SFn-Y',
+                name_mfn_z_set='MFn-Z', name_sfn_z_set='SFn-Z',
+                length_x=1.0, length_y=1.0, length_z=1.0,
+                name_rp11='RP_11', name_rp22='RP_22', name_rp33='RP_33',
+                name_rp23='RP_23', name_rp13='RP_13', name_rp12='RP_12'):
+        '''
+        Create constraint equations for specified strain vector in the form of PBC:
+        [epsilon11, epsilon22, epsilon33, gamma23, gamma13, gamma12] = 
+        [u1(RP_11), u1(RP_22), u1(RP_33), u1(RP_23), u1(RP_13), u1(RP_12)].
+
+        Parameters
+        ---------------
+        myMdl: Abaqus Model object
+            model object
+            
+        name_eqn: str
+            name of the equation constraint
+            
+        name_mfn_x_set, name_mfn_y_set, name_mfn_z_set: str
+            name of the set of master face nodes for x, y, z directions
+            
+        name_sfn_x_set, name_sfn_y_set, name_sfn_z_set: str
+            name of the set of slave face nodes for x, y, z directions
+            
+        length_x, length_y, length_z: float
+            the length of the model in x, y, z directions
+            
+        name_rp11, name_rp22, name_rp33, name_rp23, name_rp13, name_rp12: str
+            name of the reference points for the strain vector components
+
+        Notes
+        ----------------
+        Assuming small deformation, the boundary conditions are:
+        
+        - u1(Mx) - u1(Sx) - length_x * u1(RP_11) = 0
+        - u2(Mx) - u2(Sx) - 0.5 * length_x * u1(RP_12) = 0
+        - u3(Mx) - u3(Sx) - 0.5 * length_x * u1(RP_13) = 0
+
+        - u1(My) - u1(Sy) - 0.5 * length_y * u1(RP_12) = 0
+        - u2(My) - u2(Sy) - length_y * u1(RP_22) = 0
+        - u3(My) - u3(Sy) - 0.5 * length_y * u1(RP_23) = 0
+
+        - u1(Mz) - u1(Sz) - 0.5 * length_z * u1(RP_13) = 0
+        - u2(Mz) - u2(Sz) - 0.5 * length_z * u1(RP_23) = 0
+        - u3(Mz) - u3(Sz) - length_z * u1(RP_33) = 0
+
+        '''
+        aa = myMdl.rootAssembly
+        
+        # X-direction
+        
+        master_face_nodes = aa.sets[name_mfn_x_set].nodes
+        slave_face_nodes  = aa.sets[name_sfn_x_set].nodes
+        
+        for i_node in range(len(master_face_nodes)):
+
+            #* Create sets for each pair of nodes
+            name_M = '%s-%d'%(name_mfn_x_set, i_node)
+            name_S = '%s-%d'%(name_sfn_x_set, i_node)
+            aa.Set(nodes=mesh.MeshNodeArray((master_face_nodes[i_node],)), name=name_M)
+            aa.Set(nodes=mesh.MeshNodeArray((slave_face_nodes [i_node],)), name=name_S)
+
+            #* Constraint equations
+            myMdl.Equation(name='%s_X-%d-1'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 1), (-1.0, name_S, 1), (-length_x, name_rp11, 1)))
+            
+            myMdl.Equation(name='%s_X-%d-2'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 2), (-1.0, name_S, 2), (-0.5*length_x, name_rp12, 1)))
+            
+            myMdl.Equation(name='%s_X-%d-3'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 3), (-1.0, name_S, 3), (-0.5*length_x, name_rp13, 1)))
+    
+        # Y-direction
+        
+        master_face_nodes = aa.sets[name_mfn_y_set].nodes
+        slave_face_nodes  = aa.sets[name_sfn_y_set].nodes
+        
+        for i_node in range(len(master_face_nodes)):
+
+            #* Create sets for each pair of nodes
+            name_M = '%s-%d'%(name_mfn_y_set, i_node)
+            name_S = '%s-%d'%(name_sfn_y_set, i_node)
+            aa.Set(nodes=mesh.MeshNodeArray((master_face_nodes[i_node],)), name=name_M)
+            aa.Set(nodes=mesh.MeshNodeArray((slave_face_nodes [i_node],)), name=name_S)
+
+            #* Constraint equations
+            myMdl.Equation(name='%s_Y-%d-1'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 1), (-1.0, name_S, 1), (-0.5*length_y, name_rp12, 1)))
+            
+            myMdl.Equation(name='%s_Y-%d-2'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 2), (-1.0, name_S, 2), (-length_y, name_rp22, 1)))
+            
+            myMdl.Equation(name='%s_Y-%d-3'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 3), (-1.0, name_S, 3), (-0.5*length_y, name_rp23, 1)))
+    
+        # Z-direction
+        
+        master_face_nodes = aa.sets[name_mfn_z_set].nodes
+        slave_face_nodes  = aa.sets[name_sfn_z_set].nodes
+        
+        for i_node in range(len(master_face_nodes)):
+
+            #* Create sets for each pair of nodes
+            name_M = '%s-%d'%(name_mfn_z_set, i_node)
+            name_S = '%s-%d'%(name_sfn_z_set, i_node)
+            aa.Set(nodes=mesh.MeshNodeArray((master_face_nodes[i_node],)), name=name_M)
+            aa.Set(nodes=mesh.MeshNodeArray((slave_face_nodes [i_node],)), name=name_S)
+
+            #* Constraint equations
+            myMdl.Equation(name='%s_Z-%d-1'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 1), (-1.0, name_S, 1), (-0.5*length_z, name_rp13, 1)))
+            
+            myMdl.Equation(name='%s_Z-%d-2'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 2), (-1.0, name_S, 2), (-0.5*length_z, name_rp23, 1)))
+            
+            myMdl.Equation(name='%s_Z-%d-3'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 3), (-1.0, name_S, 3), (-length_z, name_rp33, 1)))
+    
+    @staticmethod
+    def calculate_engineering_constants(stiffness_matrix):
+        '''
+        Calculate the engineering constants from the stiffness matrix.
+        
+        Parameters
+        ---------------
+        stiffness_matrix: ndarray [6, 6]
+            the stiffness matrix
+            
+        Returns
+        ---------------
+        engineering_constants: dict
+            the engineering constants
+            - E11: float
+            - E22: float
+            - E33: float
+            - G23: float
+            - G13: float
+            - G12: float
+            - niu12: float
+            - niu13: float
+            - niu23: float
+            - C_avg: ndarray [6, 6]
+                the average stiffness matrix (made to be symmetric)
+            - compliance_matrix: ndarray [6, 6]
+                the compliance matrix
+        '''
+        import numpy as np
+        
+        C_avg = 0.5*(stiffness_matrix + stiffness_matrix.T)
+        S_avg = np.linalg.inv(C_avg)
+        
+        result = {
+            'E11': 1.0 / S_avg[0, 0],
+            'E22': 1.0 / S_avg[1, 1],
+            'E33': 1.0 / S_avg[2, 2],
+            'G23': 1.0 / S_avg[3, 3],
+            'G13': 1.0 / S_avg[4, 4],
+            'G12': 1.0 / S_avg[5, 5],
+            'niu12': - S_avg[0, 1] / S_avg[0, 0],
+            'niu13': - S_avg[0, 2] / S_avg[0, 0],
+            'niu23': - S_avg[1, 2] / S_avg[1, 1],
+            'C_avg': C_avg,
+            'compliance_matrix': S_avg
+        }
+        return result
+    
+    @staticmethod
+    def calculate_rp_displacements(strain_vector, model_length_x, model_length_y, model_length_z):
+        '''
+        Calculate the displacement `u` of reference points for boundary condition definition.
+
+        Parameters
+        ----------------------
+        strain_vector: ndarray [6]
+            the strain vector for loading
+            
+        model_length_x, model_length_y, model_length_z: float
+            the length of model in x, y, z directions
+        
+        Returns
+        ----------------------
+        displacements: dict
+            the `u1` displacement of reference points
+            - RP_11: float
+            - RP_22: float
+            - RP_33: float
+            - RP_23: float
+            - RP_13: float
+            - RP_12: float
+        '''
+        # displacements = {
+        #     'RP_11': strain_vector[0]*model_length_y*model_length_z,
+        #     'RP_22': strain_vector[1]*model_length_z*model_length_x,
+        #     'RP_33': strain_vector[2]*model_length_x*model_length_y,
+        #     'RP_23': strain_vector[3]*model_length_y*model_length_z,
+        #     'RP_13': strain_vector[4]*model_length_z*model_length_x,
+        #     'RP_12': strain_vector[5]*model_length_x*model_length_y,
+        # }
+        
+        volume = model_length_x*model_length_y*model_length_z
+        
+        displacements = {
+            'RP_11': strain_vector[0]*volume,
+            'RP_22': strain_vector[1]*volume,
+            'RP_33': strain_vector[2]*volume,
+            'RP_23': strain_vector[3]*volume,
+            'RP_13': strain_vector[4]*volume,
+            'RP_12': strain_vector[5]*volume,
+        }
+
+        return displacements
+           
+    
