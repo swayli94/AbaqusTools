@@ -604,13 +604,16 @@ class PBC_3DOrthotropic(PeriodicBC):
             - niu12: float
             - niu13: float
             - niu23: float
-            - C_avg: ndarray [6, 6]
+            - C_avg: list [6, 6]
                 the average stiffness matrix (made to be symmetric)
-            - compliance_matrix: ndarray [6, 6]
+            - compliance_matrix: list [6, 6]
                 the compliance matrix
+            - stiffness_matrix: list [6, 6]
+                the original stiffness matrix
         '''
         import numpy as np
         
+        stiffness_matrix = np.array(stiffness_matrix)
         C_avg = 0.5*(stiffness_matrix + stiffness_matrix.T)
         S_avg = np.linalg.inv(C_avg)
         
@@ -624,8 +627,9 @@ class PBC_3DOrthotropic(PeriodicBC):
             'niu12': - S_avg[0, 1] / S_avg[0, 0],
             'niu13': - S_avg[0, 2] / S_avg[0, 0],
             'niu23': - S_avg[1, 2] / S_avg[1, 1],
-            'C_avg': C_avg,
-            'compliance_matrix': S_avg
+            'stiffness_matrix': stiffness_matrix.tolist(),
+            'compliance_matrix': S_avg.tolist(),
+            'C_avg': C_avg.tolist()
         }
         return result
     
