@@ -222,7 +222,7 @@ class PeriodicBC(NodeOperation):
         print('    nNodes= %d after excluding forbidden nodes from %d nodes in each face'%(len(labels_master), num_node_master))
         print('>>>')
         
-        return name_mfn, name_sfn
+        return name_mfn, name_sfn, label_forbidden_nodes
 
 
 class PBC_Beam(PeriodicBC):

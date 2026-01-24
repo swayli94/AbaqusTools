@@ -191,7 +191,7 @@ class TestModel(Model):
                 label_forbidden = []
             last_instance = name_instance
             
-            name_mfn, name_sfn = PBC_Beam.create_node_sets(self.model, name_instance, 
+            name_mfn, name_sfn, label_forbidden = PBC_Beam.create_node_sets(self.model, name_instance, 
                                         name_master_face, name_slave_face, coords_sorting, name_forbidden_sets, label_forbidden)
             
             self.face_pairs_name_node_sets.append((name_instance, name_mfn, name_sfn))

@@ -26,11 +26,12 @@ from AbaqusTools.pbc import PBC_3DOrthotropic
 
 class TestModel_PBC_3D(SteelBeamModel):
     
-    def __init__(self, name_job, strain_vector=[1E-6,0,0,0,0,0]):
+    def __init__(self, name_job, strain_component=0, strain_scale=1E-3):
         
         super(TestModel_PBC_3D,self).__init__(name_job)
 
-        self.strain_vector = strain_vector
+        self.strain_component = strain_component
+        self.strain_scale = strain_scale
         self.label_rp = ['RP_11', 'RP_22', 'RP_33', 'RP_23', 'RP_13', 'RP_12']
 
     def setup_loads(self):
@@ -61,20 +62,15 @@ class TestModel_PBC_3D(SteelBeamModel):
         
         #* Pairs of faces that are periodic
         #     master_face, slave_face,      forbidden_sets,     coords_sorting, name_mfn, name_sfn
-        pairs=[('face_z1',  'face_z0',  [],                              (0,1),  'MFn-Z', 'SFn-Z'),
-               ('face_x1',  'face_x0',  ['edge_y_z0x0', 'edge_y_z1x0', 
-                                        'edge_y_z0x1', 'edge_y_z1x1'],   (1,2),  'MFn-X', 'SFn-X'),
-               ('face_y1',  'face_y0',  ['edge_x_y0z0', 'edge_x_y1z0',
-                                        'edge_x_y0z1', 'edge_x_y1z1',
-                                        'edge_z_x0y0', 'edge_z_x1y0',
-                                        'edge_z_x0y1', 'edge_z_x1y1'],   (2,0),  'MFn-Y', 'SFn-Y')]
+        pairs = self._create_pbc_face_pairs()
 
         #* Create node sets on the master/slave faces
         label_forbidden = []
 
         for master_face, slave_face, forbidden_sets, coords_sorting, name_mfn, name_sfn in pairs:
             
-            PBC_3DOrthotropic.create_node_sets(self.model, name_instance, 
+            _,_, label_forbidden = PBC_3DOrthotropic.create_node_sets(
+                                myMdl=self.model, name_instance=name_instance, 
                                 name_master_face_set=master_face, 
                                 name_slave_face_set=slave_face,
                                 coords_sorting=coords_sorting,
@@ -91,6 +87,68 @@ class TestModel_PBC_3D(SteelBeamModel):
                 length_x=self.length_x, length_y=self.length_y, length_z=self.length_z,
                 name_rp11=self.label_rp[0], name_rp22=self.label_rp[1], name_rp33=self.label_rp[2],
                 name_rp23=self.label_rp[3], name_rp13=self.label_rp[4], name_rp12=self.label_rp[5])
+
+    def _create_pbc_face_pairs(self):
+        '''
+        Create pairs of faces that are periodic.
+        
+        Notes
+        ---------------
+        Using forbidden sets to exclude duplicated constraints is not perfect.
+        The correct way is to use the automatic approach of `label_forbidden_nodes` 
+        in `exclude_forbidden_nodes_pbc` (in `pbc.py`).
+        '''
+
+        '''
+        if self.strain_component == 0 or self.strain_component == 3:
+            # epsilon_11, gamma_23
+            pairs=[
+                ('face_x1', 'face_x0',  [],                                 (1,2),  'MFn-X', 'SFn-X'),
+                ('face_y1', 'face_y0',  ['edge_z_x0y1', 'edge_z_x1y1'],     (2,0),  'MFn-Y', 'SFn-Y'),
+                ('face_z1', 'face_z0',  ['edge_x_y0z1', 'edge_x_y1z1',
+                                         'edge_y_z0x1', 'edge_y_z1x1'],     (0,1),  'MFn-Z', 'SFn-Z')]
+                    
+        elif self.strain_component == 1 or self.strain_component == 4:
+            # epsilon_22, gamma_13
+            pairs=[
+                ('face_y1', 'face_y0',  [],                                 (2,0),  'MFn-Y', 'SFn-Y'),
+                ('face_z1', 'face_z0',  ['edge_x_y0z1', 'edge_x_y1z1'],     (0,1),  'MFn-Z', 'SFn-Z'),
+                ('face_x1', 'face_x0',  ['edge_y_z0x1', 'edge_y_z1x1',
+                                         'edge_z_x0y1', 'edge_z_x1y1'],     (1,2),  'MFn-X', 'SFn-X')]
+        
+        else:
+            # epsilon_33, gamma_12
+            pairs=[
+                ('face_z1', 'face_z0',  [],                                 (0,1),  'MFn-Z', 'SFn-Z'),
+                ('face_x1', 'face_x0',  ['edge_y_z0x1', 'edge_y_z1x1'],     (1,2),  'MFn-X', 'SFn-X'),
+                ('face_y1', 'face_y0',  ['edge_x_y0z1', 'edge_x_y1z1',
+                                         'edge_z_x0y1', 'edge_z_x1y1'],     (2,0),  'MFn-Y', 'SFn-Y')]
+        '''
+        
+        #     master_face, slave_face,      forbidden_sets,     coords_sorting, name_mfn, name_sfn
+        
+        if self.strain_component == 0 or self.strain_component == 3:
+            # epsilon_11, gamma_23 (yz-face should be intact, i.e., not be forbidden)
+            pairs=[
+                ('face_x1', 'face_x0',  [], (1,2),  'MFn-X', 'SFn-X'),
+                ('face_y1', 'face_y0',  [], (2,0),  'MFn-Y', 'SFn-Y'),
+                ('face_z1', 'face_z0',  [], (0,1),  'MFn-Z', 'SFn-Z')]
+                    
+        elif self.strain_component == 1 or self.strain_component == 4:
+            # epsilon_22, gamma_13 (zx-face should be intact, i.e., not be forbidden)
+            pairs=[
+                ('face_y1', 'face_y0',  [], (2,0),  'MFn-Y', 'SFn-Y'),
+                ('face_z1', 'face_z0',  [], (0,1),  'MFn-Z', 'SFn-Z'),
+                ('face_x1', 'face_x0',  [], (1,2),  'MFn-X', 'SFn-X')]
+        
+        else:
+            # epsilon_33, gamma_12 (xy-face should be intact, i.e., not be forbidden)
+            pairs=[
+                ('face_z1', 'face_z0',  [], (0,1),  'MFn-Z', 'SFn-Z'),
+                ('face_x1', 'face_x0',  [], (1,2),  'MFn-X', 'SFn-X'),
+                ('face_y1', 'face_y0',  [], (2,0),  'MFn-Y', 'SFn-Y')]
+            
+        return pairs
 
     def create_bc_pinned(self):
         '''
@@ -120,11 +178,15 @@ class TestModel_PBC_3D(SteelBeamModel):
         a = self.rootAssembly
 
         for i_rp, label_rp in enumerate(self.label_rp):
-        
+            
+            if i_rp == self.strain_component:
+                u1 = self.strain_scale
+            else:
+                u1 = 0.0
+
             self.model.DisplacementBC(name=label_rp, createStepName='Loading', 
                 region=a.sets[label_rp],
-                u1=self.strain_vector[i_rp], 
-                u2=UNSET, u3=UNSET, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
+                u1=u1, u2=UNSET, u3=UNSET, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
                 amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
 
 
@@ -133,9 +195,7 @@ if __name__ == '__main__':
 
     cmd_arguments = str(sys.argv)
 
-    STRAIN_VECTORS=np.eye(6,6)*1E-6
-
-    #* Read strain vector from file
+    #* Read strain component from file
 
     if os.path.exists('temp-strain-vector.txt'):
         
@@ -148,12 +208,12 @@ if __name__ == '__main__':
         i0 = 0
             
     print('>>> ')
-    print('>>> Base strain vector: %d'%(i0))
+    print('>>> Base strain component: %d'%(i0))
     print('>>> ')
 
     name_job = 'Job_beam_%d'%(i0)
 
-    model = TestModel_PBC_3D(name_job, STRAIN_VECTORS[i0,:])
+    model = TestModel_PBC_3D(name_job, strain_component=i0)
     model.build()
     
     model.write_job_inp(model.name_job)
@@ -194,6 +254,5 @@ if __name__ == '__main__':
             for i_rp, label_rp in enumerate(model.label_rp):
                 f.write('%s_U   %20.6E \n'%(label_rp, u_RPs[i_rp]))
 
-            for i_rp, label_rp in enumerate(model.label_rp):
-                f.write('Strain_%d-%d  %20.6E \n'%(i0, i_rp, STRAIN_VECTORS[i0][i_rp]))
+            f.write('Strain_%d  %20.6E \n'%(i0, model.strain_scale))
             

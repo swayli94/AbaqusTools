@@ -75,7 +75,8 @@ class TestModel_PBC_3D(OpenHolePlateModel):
 
         for master_face, slave_face, forbidden_sets, coords_sorting, name_mfn, name_sfn in pairs:
             
-            PBC_3DOrthotropic.create_node_sets(self.model, name_instance, 
+            _,_, label_forbidden = PBC_3DOrthotropic.create_node_sets(
+                                myMdl=self.model, name_instance=name_instance, 
                                 name_master_face_set=master_face, 
                                 name_slave_face_set=slave_face,
                                 coords_sorting=coords_sorting,

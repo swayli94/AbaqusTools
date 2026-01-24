@@ -7,13 +7,16 @@ Run four load cases with the basis strain vectors
 import os
 import time
 import numpy as np
+import json
 
 from AbaqusTools.functions import clean_pyc_files, clean_temporary_files
+from AbaqusTools.pbc import PBC_3DOrthotropic
 
 
 COMMAND = 'abaqus cae noGUI='
 
 fname_py = 'job-pbc-3d.py'
+SCALE = 1E-6
 
 
 if __name__ == '__main__':
@@ -41,9 +44,8 @@ if __name__ == '__main__':
         with open(name_job+'-RF.dat', 'r') as f:
             lines = f.readlines()
             
-            scale = float(lines[12+i].split()[1])
             for j in range(6):
-                StiffMatrix[j,i] = float(lines[j].split()[1])/scale
+                StiffMatrix[j,i] = float(lines[j].split()[1])/SCALE
         
         t2 = time.time()
         
@@ -51,11 +53,10 @@ if __name__ == '__main__':
         print('>>> =============================================')
 
 
-    with open('stiffness-matrix.dat', 'w') as f:
-        for j in range(6):
-            for i in range(6):
-                f.write('%15.3E'%(StiffMatrix[j,i]))
-            f.write('\n')
+    engineering_constants = PBC_3DOrthotropic.calculate_engineering_constants(StiffMatrix)
+
+    with open('homogenized-properties.json', 'w') as f:
+        json.dump(engineering_constants, f, indent=4)
 
     print('>>> =============================================')
     print('>>> Time [total]: %.2f min'%((t2-t0)/60.0))

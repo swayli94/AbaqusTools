@@ -160,8 +160,8 @@ class SteelBeamModel(Model):
     def setup_parts(self):
         
         self.beam_0 = Beam(self.model, 'beam_0', 
-                        length_x=100, length_y=20, length_z=50,
-                        seedPart_size=4.0)
+                        length_x=10, length_y=10, length_z=10,
+                        seedPart_size=1.0)
         self.beam_0.build()
         
         self.neutral_axis_x = 0.5*self.beam_0.length_x
