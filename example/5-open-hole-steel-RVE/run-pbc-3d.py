@@ -35,6 +35,8 @@ if __name__ == '__main__':
         default_parameters['index_strain_vector'] = i
         with open('parameters.json', 'w') as f:
             json.dump(default_parameters, f, indent=4)
+            
+        scale = default_parameters['strain_scale']
         
         os.system(COMMAND+fname_py)
         
@@ -45,7 +47,6 @@ if __name__ == '__main__':
         with open(name_job+'-RF.dat', 'r') as f:
             lines = f.readlines()
             
-            scale = float(lines[12+i].split()[1])
             for j in range(6):
                 StiffMatrix[j,i] = float(lines[j].split()[1])/scale
         

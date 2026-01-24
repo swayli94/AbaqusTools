@@ -32,5 +32,5 @@
     },
     "index_run": 0,
     "index_strain_vector": 0,
-    "strain_scale": 1E-6
+    "strain_scale": 1E-3
 }

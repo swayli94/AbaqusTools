@@ -4,7 +4,7 @@ Steel plate (in x-y plane) with an open hole in the center.
 import json
 import time
 import numpy as np
-from AbaqusTools import Part, IS_ABAQUS
+from AbaqusTools import IS_ABAQUS
 
 if IS_ABAQUS:
     from abaqus import *
@@ -13,7 +13,6 @@ if IS_ABAQUS:
     import mesh
     
 from AbaqusTools import Part, Model
-from AbaqusTools.functions import LayupParameters
 
 
 class OpenHolePlate(Part):
@@ -35,7 +34,10 @@ class OpenHolePlate(Part):
         self.yc_hole = self.pGeo['yr_hole_center'] * self.len_y
         self.r_hole = self.pGeo['r_hole']
         
-        self._cal_partition_dimensions()
+        self.r_partition, self.width_partition = self._cal_partition_dimensions(
+            len_x=self.len_x, len_y=self.len_y, r_hole=self.r_hole,
+            xc_hole=self.xc_hole, yc_hole=self.yc_hole,
+            radius_ratio_partition_circle=self.pMesh['radius_ratio_partition_circle'])
 
     def build(self):
         '''
@@ -87,27 +89,33 @@ class OpenHolePlate(Part):
         print('    [Part: %s] build time = %.1f (min)'%(self.name_part, (t1-t0)/60.0))
         print('>>>')
 
-    def _cal_partition_dimensions(self, ratio_circle=0.3, ratio_square=0.6):
+    @staticmethod
+    def _cal_partition_dimensions(len_x, len_y, r_hole,
+                            xc_hole, yc_hole,
+                            radius_ratio_partition_circle,
+                            ratio_circle=0.3, ratio_square=0.6):
         '''
         Calculate the radius of partition circle around the open hole,
         and the length of partition square around the partition circle.
         '''
-        dx0 = self.xc_hole - self.r_hole
-        dx1 = self.len_x - self.xc_hole - self.r_hole
-        dy0 = self.yc_hole - self.r_hole
-        dy1 = self.len_y - self.yc_hole - self.r_hole
+        dx0 = xc_hole - r_hole
+        dx1 = len_x - xc_hole - r_hole
+        dy0 = yc_hole - r_hole
+        dy1 = len_y - yc_hole - r_hole
         
-        self.r_partition = min(
-            self.pMesh['radius_ratio_partition_circle']*self.r_hole, 
-            self.r_hole + ratio_circle*dx0, self.r_hole + ratio_circle*dx1, 
-            self.r_hole + ratio_circle*dy0, self.r_hole + ratio_circle*dy1
+        r_partition = min(
+            radius_ratio_partition_circle*r_hole, 
+            r_hole + ratio_circle*dx0, r_hole + ratio_circle*dx1, 
+            r_hole + ratio_circle*dy0, r_hole + ratio_circle*dy1
             )
         
-        self.width_partition = 2* min(
-            self.r_partition*2 - self.r_hole, 
-            self.r_hole + ratio_square*dx0, self.r_hole + ratio_square*dx1,
-            self.r_hole + ratio_square*dy0, self.r_hole + ratio_square*dy1
+        width_partition = 2* min(
+            r_partition*2 - r_hole, 
+            r_hole + ratio_square*dx0, r_hole + ratio_square*dx1,
+            r_hole + ratio_square*dy0, r_hole + ratio_square*dy1
             )
+        
+        return r_partition, width_partition
 
     def create_sketch(self):
         '''
@@ -543,7 +551,7 @@ class OpenHolePlateModel(Model):
 
 if __name__ == '__main__':
 
-    with open('parameters.json', 'r') as f:
+    with open('default-parameters.json', 'r') as f:
         parameters = json.load(f)
 
     pGeo = parameters['pGeo']
