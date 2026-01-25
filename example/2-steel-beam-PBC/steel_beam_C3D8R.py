@@ -145,9 +145,7 @@ class SteelBeamModel(Model):
     
     def __init__(self, name_job):
         
-        super(SteelBeamModel,self).__init__(pGeo=None, pMesh=None, pRun=None)
-
-        self.name_job = name_job
+        super(SteelBeamModel,self).__init__(pGeo=None, pMesh=None, pRun=None, name_job=name_job)
         
     def initialization(self):
         

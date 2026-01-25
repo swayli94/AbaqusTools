@@ -1,0 +1,31 @@
+{
+    "pGeo": {
+        "len_x_plate": 10,
+        "len_y_plate": 10,
+        "len_z_plate": 10
+    },
+    "pMesh": {
+        "composite_ply_thickness": 1,
+        "num_element_thickness": 1,
+        
+        "plate_seedPart_size": 2.0,
+        "plate_CompositeLayup_symmetric": true,
+        "plate_CompositePly_numIntPoints": 3,
+        "plate_CompositePly_orientationValue": [ 0, 0, 0, 0, 0 ]
+    },
+    "pRun": {
+        "timePeriod": 1.0,
+        "maxNumInc": 10000000,
+        "initialInc": 0.01,
+        "minInc": 1e-15,
+        "maxInc": 0.1,
+        "nlgeom": false,
+        "memory_max_percentage": 90,
+        "numCpus": 4,
+        "numThreadsPerMpiProcess": 1
+    },
+    "index_run": 0,
+    "index_strain_vector": 0,
+    "strain_scale": 1E-3,
+    "not_run_job": false
+}
