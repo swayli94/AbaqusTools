@@ -43,7 +43,7 @@ Theoretical stiffness
     lambda (Lamé's first parameter) = 1.212E+05
     mu (Shear modulus, G) = 8.077E+04
 
-RVE's results
+RVE's results using PBC (Periodic Boundary Conditions)
 
       [length_x]  [length_y]  [length_z]  [seedPart_size]   [E11] [E22] [E33] [G23] [G13] [G12] [n12] [n13] [n23]
 
@@ -61,3 +61,20 @@ RVE's results
       10          10          5           1.0               2.10  2.10  2.10  8.08  8.08  8.08  0.30  0.30  0.30
       10          4           2           1.0               2.10  2.10  2.10  8.08  8.08  8.08  0.30  0.30  0.30
 
+RVE's results using LBC (Linear Boundary Conditions)
+
+      [length_x]  [length_y]  [length_z]  [seedPart_size]   [E11] [E22] [E33] [G23] [G13] [G12] [n12] [n13] [n23]
+
+      {Scaling element size has no influence}
+      10          10          10          1.0               2.10  2.10  2.10  8.08  8.08  8.08  0.30  0.30  0.30
+      20          20          20          2.0               2.10  2.10  2.10  8.08  8.08  8.08  0.30  0.30  0.30
+
+      {Coarse mesh still produces accurate results}
+      10          10          10          5.0               2.10  2.10  2.10  8.08  8.08  8.08  0.30  0.30  0.30
+      10          10          10          2.0               2.10  2.10  2.10  8.08  8.08  8.08  0.30  0.30  0.30
+      10          10          10          1.0               2.10  2.10  2.10  8.08  8.08  8.08  0.30  0.30  0.30
+
+      {Aspect ratio has no influence}
+      10          10          10          1.0               2.10  2.10  2.10  8.08  8.08  8.08  0.30  0.30  0.30
+      10          10          5           1.0               2.10  2.10  2.10  8.08  8.08  8.08  0.30  0.30  0.30
+      10          4           2           1.0               2.10  2.10  2.10  8.08  8.08  8.08  0.30  0.30  0.30

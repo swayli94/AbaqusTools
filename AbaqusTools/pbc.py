@@ -1,7 +1,9 @@
 '''
-Classes for Abaqus modeling procedures:
+Classes for Periodic Boundary Conditions (PBCs) in Abaqus.
 
--   `PeriodicBC`: class of functions to setup periodic boundary conditions (PBCs) in `Model`;
+-   `PeriodicBC`: setup PBCs in `Model` via constraint equations;
+-   `PBC_Beam`: setup PBCs for obtaining the homogenized properties of beam-like structures;
+-   `PBC_3DOrthotropic`: setup PBCs for obtaining the homogenized properties of 3D orthotropic materials;
 
 '''
 import copy
