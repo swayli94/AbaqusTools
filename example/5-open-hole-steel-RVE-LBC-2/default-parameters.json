@@ -1,8 +1,8 @@
 {
     "pGeo": {
-        "len_x_plate": 60,
-        "len_y_plate": 100,
-        "len_z_plate": 4,
+        "len_x_plate": 30,
+        "len_y_plate": 30,
+        "len_z_plate": 10,
         "xr_hole_center": 0.5,
         "yr_hole_center": 0.5,
         "r_hole": 10
@@ -17,7 +17,7 @@
         "square_radial_bias_seedEdgeByBias": 3.0,
         "square_radial_num_seedEdgeByBias": 8,
         
-        "plate_seedPart_size": 2.0
+        "plate_seedPart_size": 1.0
     },
     "pRun": {
         "timePeriod": 1.0,

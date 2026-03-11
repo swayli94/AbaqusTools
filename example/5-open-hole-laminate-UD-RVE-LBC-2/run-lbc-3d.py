@@ -8,7 +8,7 @@ import numpy as np
 import json
 
 from AbaqusTools.functions import clean_pyc_files, clean_temporary_files
-from AbaqusTools.lin_bc import LBC_3DOrthotropic
+from AbaqusTools.lin_bc import LBC_3DOrthotropic_2
 
 
 COMMAND = 'abaqus cae noGUI='
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         print('>>> =============================================')
 
 
-    engineering_constants = LBC_3DOrthotropic.calculate_engineering_constants(StiffMatrix)
+    engineering_constants = LBC_3DOrthotropic_2.calculate_engineering_constants(StiffMatrix)
 
     with open('homogenized-properties.json', 'w') as f:
         json.dump(engineering_constants, f, indent=4)

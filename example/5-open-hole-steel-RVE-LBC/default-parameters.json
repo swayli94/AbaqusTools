@@ -1,28 +1,23 @@
 {
     "pGeo": {
-        "len_x_plate": 10,
-        "len_y_plate": 10,
+        "len_x_plate": 30,
+        "len_y_plate": 30,
         "len_z_plate": 10,
         "xr_hole_center": 0.5,
         "yr_hole_center": 0.5,
-        "r_hole": 3
+        "r_hole": 10
     },
     "pMesh": {
-        "composite_ply_thickness": 1,
-        "num_element_thickness": 1,
+        "num_element_thickness": 5,
         
-        "plate_seedPart_size": 1.0,
-
         "radius_ratio_partition_circle": 1.5,
         "hole_circumferential_num_seedEdgeByNumber": 16,
         "circle_radial_bias_seedEdgeByBias": 5.0,
         "circle_radial_num_seedEdgeByBias": 16,
         "square_radial_bias_seedEdgeByBias": 3.0,
         "square_radial_num_seedEdgeByBias": 8,
-
-        "plate_CompositeLayup_symmetric": true,
-        "plate_CompositePly_numIntPoints": 3,
-        "plate_CompositePly_orientationValue": [ 0, 0, 0, 0, 0 ]
+        
+        "plate_seedPart_size": 1.0
     },
     "pRun": {
         "timePeriod": 1.0,

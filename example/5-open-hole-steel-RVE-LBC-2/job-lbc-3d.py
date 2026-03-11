@@ -1,7 +1,7 @@
 '''
-Test the Periodic Boundary Condition (PBC) in Abaqus with a simple steel beam.
+Test the Linear Boundary Condition (LBC) in Abaqus with a simple steel beam.
 
-Define PBC by constraint equations between node sets.
+Define LBC by constraint equations between node sets.
 
 Example
 ---------------
@@ -22,14 +22,14 @@ import numpy as np
 
 from open_hole_C3D8R import OpenHolePlateModel
 from AbaqusTools import OdbOperation
-from AbaqusTools.pbc import PBC_3DOrthotropic
+from AbaqusTools.lin_bc import LBC_3DOrthotropic_2
 
 
-class TestModel_PBC_3D(OpenHolePlateModel):
+class TestModel_LBC_3D(OpenHolePlateModel):
     
     def __init__(self, name_job, pGeo, pMesh, pRun, strain_component=0, strain_scale=1E-3):
         
-        super(TestModel_PBC_3D,self).__init__(name_job, pGeo, pMesh, pRun)
+        super(TestModel_LBC_3D,self).__init__(name_job, pGeo, pMesh, pRun)
 
         self.strain_component = strain_component
         self.strain_scale = strain_scale
@@ -41,29 +41,27 @@ class TestModel_PBC_3D(OpenHolePlateModel):
         '''
         self.create_reference_points()
 
-        self.create_pbc_constraints()
-        
-        self.create_bc_pinned()
-        
+        self.create_lbc_constraints()
+
         self.create_bc_displacement()
     
     def create_reference_points(self):
         '''
-        Create reference points for the periodic boundary conditions
+        Create reference points for the linear boundary conditions
         '''
         for i_rp, label_rp in enumerate(self.label_rp):
             self.create_reference_point(-10*(i_rp+1), 0, 0, label_rp)
             self.create_reference_point_set(label_rp, label_rp)        
     
-    def _create_pbc_face_pairs(self):
+    def _create_lbc_face_pairs(self):
         '''
-        Create pairs of faces that are periodic.
+        Create pairs of faces for linear boundary conditions.
         
         Notes
         ---------------
         Using forbidden sets to exclude duplicated constraints is not perfect.
         The correct way is to use the automatic approach of `label_forbidden_nodes` 
-        in `exclude_forbidden_nodes_pbc` (in `pbc.py`).
+        in `exclude_forbidden_nodes` (in `lin_bc.py`).
         '''
         #     master_face, slave_face,      forbidden_sets,     coords_sorting, name_mfn, name_sfn
         
@@ -90,122 +88,50 @@ class TestModel_PBC_3D(OpenHolePlateModel):
             
         return pairs
 
-    def create_pbc_constraints(self):
+    def create_lbc_constraints(self):
         '''
         Create node sets of nodes in paired faces.
         '''
         name_instance = 'plate'
         
-        #* Pairs of faces that are periodic
-        pairs = self._create_pbc_face_pairs()
+        #* Pairs of faces for linear boundary conditions
+        pairs = self._create_lbc_face_pairs()
+
+        if self.strain_component in [0, 1, 2]:
+            bc_type = 'normal'
+        elif self.strain_component in [3, 4, 5]:
+            bc_type = 'shear'
+        else:
+            raise ValueError("Invalid strain component: %d"%(self.strain_component))
+        
+        bc_type = 'pbc_z'
 
         #* Create node sets on the master/slave faces
         label_forbidden = []
 
         for master_face, slave_face, forbidden_sets, coords_sorting, name_mfn, name_sfn in pairs:
             
-            _,_, label_forbidden = PBC_3DOrthotropic.create_node_sets(
+            _,_, label_forbidden = LBC_3DOrthotropic_2.create_node_sets(
                                 myMdl=self.model, name_instance=name_instance, 
                                 name_master_face_set=master_face, 
                                 name_slave_face_set=slave_face,
                                 coords_sorting=coords_sorting,
                                 name_forbidden_sets=forbidden_sets, 
                                 label_forbidden_nodes=label_forbidden,
-                                name_mfn=name_mfn, name_sfn=name_sfn)
+                                name_mfn=name_mfn, name_sfn=name_sfn,
+                                bc_type=bc_type)
         
-        #* Create constraint equations
-        PBC_3DOrthotropic.create_constraints_strain_vector(self.model,
-                name_eqn='PBC3D_%s'%(name_instance),
+        #* Create constraint equations        
+        LBC_3DOrthotropic_2.create_constraints_strain_vector(self.model,
+                name_eqn='LBC3D_2_%s'%(name_instance),
                 name_mfn_x_set='MFn-X', name_sfn_x_set='SFn-X',
                 name_mfn_y_set='MFn-Y', name_sfn_y_set='SFn-Y',
                 name_mfn_z_set='MFn-Z', name_sfn_z_set='SFn-Z',
                 length_x=self.length_x, length_y=self.length_y, length_z=self.length_z,
                 name_rp11=self.label_rp[0], name_rp22=self.label_rp[1], name_rp33=self.label_rp[2],
-                name_rp23=self.label_rp[3], name_rp13=self.label_rp[4], name_rp12=self.label_rp[5])
-
-    def create_bc_pinned(self):
-        '''
-        Create Abaqus BCs (After `Step`) to remove the rigid body motion.
-        '''           
-        a = self.rootAssembly
-        
-        self.model.DisplacementBC(name='Pinned-X0Y0Z0', createStepName='Initial', 
-            region=a.sets['plate.vertex_000'],
-            u1=0.0, u2=0.0, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-            amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
-        
-        if self.strain_component == 0:
-            # epsilon_11
-            self.model.DisplacementBC(name='Pinned-X0Y1Z0', createStepName='Initial', 
-                region=a.sets['plate.vertex_010'],
-                u1=0.0, u2=UNSET, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
-            
-            self.model.DisplacementBC(name='Pinned-X0Y0Z1', createStepName='Initial', 
-                region=a.sets['plate.vertex_001'],
-                u1=0.0, u2=0.0, u3=UNSET, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
-            
-        elif self.strain_component == 1:
-            # epsilon_22
-            self.model.DisplacementBC(name='Pinned-X0Y0Z1', createStepName='Initial', 
-                region=a.sets['plate.vertex_001'],
-                u1=0.0, u2=0.0, u3=UNSET, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
-            
-            self.model.DisplacementBC(name='Pinned-X1Y0Z0', createStepName='Initial', 
-                region=a.sets['plate.vertex_100'],
-                u1=UNSET, u2=0.0, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
-            
-        elif self.strain_component == 2:
-            # epsilon_33
-            self.model.DisplacementBC(name='Pinned-X1Y0Z0', createStepName='Initial', 
-                region=a.sets['plate.vertex_100'],
-                u1=UNSET, u2=0.0, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
-            
-            self.model.DisplacementBC(name='Pinned-X0Y1Z0', createStepName='Initial', 
-                region=a.sets['plate.vertex_010'],
-                u1=0.0, u2=UNSET, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
-            
-        elif self.strain_component == 3:
-            # gamma_23
-            self.model.DisplacementBC(name='Pinned-X1Y0Z0', createStepName='Initial', 
-                region=a.sets['plate.vertex_100'],
-                u1=UNSET, u2=0.0, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
-            
-            self.model.DisplacementBC(name='Pinned-X0Y1Z0', createStepName='Initial', 
-                region=a.sets['plate.vertex_010'],
-                u1=0.0, u2=UNSET, u3=UNSET, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
-            
-        elif self.strain_component == 4:
-            # gamma_13
-            self.model.DisplacementBC(name='Pinned-X0Y1Z0', createStepName='Initial', 
-                region=a.sets['plate.vertex_010'],
-                u1=0.0, u2=UNSET, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
-            
-            self.model.DisplacementBC(name='Pinned-X1Y0Z0', createStepName='Initial', 
-                region=a.sets['plate.vertex_100'],
-                u1=UNSET, u2=0.0, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
-            
-        elif self.strain_component == 5:
-            # gamma_12
-            self.model.DisplacementBC(name='Pinned-X0Y1Z0', createStepName='Initial', 
-                region=a.sets['plate.vertex_010'],
-                u1=0.0, u2=UNSET, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
-            
-            self.model.DisplacementBC(name='Pinned-X1Y0Z0', createStepName='Initial', 
-                region=a.sets['plate.vertex_100'],
-                u1=UNSET, u2=0.0, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
-        
+                name_rp23=self.label_rp[3], name_rp13=self.label_rp[4], name_rp12=self.label_rp[5],
+                bc_type=bc_type)
+  
     def create_bc_displacement(self):
         '''
         Create Abaqus BCs (After `Step`) to apply the displacement boundary conditions.
@@ -246,7 +172,7 @@ if __name__ == '__main__':
 
     name_job = 'Job_OHP_%d_%d'%(index_run, index_strain_vector)
 
-    model = TestModel_PBC_3D(name_job, pGeo, pMesh, pRun,
+    model = TestModel_LBC_3D(name_job, pGeo, pMesh, pRun,
                         strain_component=index_strain_vector,
                         strain_scale=parameters['strain_scale'])
     model.build()

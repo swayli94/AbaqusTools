@@ -20,7 +20,7 @@ import json
 
 from laminate_C3D8R import LaminateModel
 from AbaqusTools import OdbOperation
-from AbaqusTools.lin_bc import LBC_3DOrthotropic
+from AbaqusTools.lin_bc import LBC_3DOrthotropic_2
 
 
 class TestModel_LBC_3D(LaminateModel):
@@ -55,38 +55,48 @@ class TestModel_LBC_3D(LaminateModel):
     
     def create_lbc_constraints(self):
         '''
-        Create node sets of nodes in paired faces for linear boundary conditions.
+        Create node sets of nodes in paired faces.
         '''
         name_instance = 'plate'
         
         #* Pairs of faces for linear boundary conditions
-        #     master_face, slave_face,      forbidden_sets,     coords_sorting, name_mfn, name_sfn
         pairs = self._create_lbc_face_pairs()
+
+        if self.strain_component in [0, 1, 2]:
+            bc_type = 'normal'
+        elif self.strain_component in [3, 4, 5]:
+            bc_type = 'shear'
+        else:
+            raise ValueError("Invalid strain component: %d"%(self.strain_component))
+        
+        bc_type = 'pbc_z'
 
         #* Create node sets on the master/slave faces
         label_forbidden = []
 
         for master_face, slave_face, forbidden_sets, coords_sorting, name_mfn, name_sfn in pairs:
             
-            _,_, label_forbidden = LBC_3DOrthotropic.create_node_sets(
+            _,_, label_forbidden = LBC_3DOrthotropic_2.create_node_sets(
                                 myMdl=self.model, name_instance=name_instance, 
                                 name_master_face_set=master_face, 
                                 name_slave_face_set=slave_face,
                                 coords_sorting=coords_sorting,
                                 name_forbidden_sets=forbidden_sets, 
                                 label_forbidden_nodes=label_forbidden,
-                                name_mfn=name_mfn, name_sfn=name_sfn)
+                                name_mfn=name_mfn, name_sfn=name_sfn,
+                                bc_type=bc_type)
         
-        #* Create constraint equations
-        LBC_3DOrthotropic.create_constraints_strain_vector(self.model,
-                name_eqn='PBC3D_%s'%(name_instance),
+        #* Create constraint equations        
+        LBC_3DOrthotropic_2.create_constraints_strain_vector(self.model,
+                name_eqn='LBC3D_2_%s'%(name_instance),
                 name_mfn_x_set='MFn-X', name_sfn_x_set='SFn-X',
                 name_mfn_y_set='MFn-Y', name_sfn_y_set='SFn-Y',
                 name_mfn_z_set='MFn-Z', name_sfn_z_set='SFn-Z',
                 length_x=self.length_x, length_y=self.length_y, length_z=self.length_z,
                 name_rp11=self.label_rp[0], name_rp22=self.label_rp[1], name_rp33=self.label_rp[2],
-                name_rp23=self.label_rp[3], name_rp13=self.label_rp[4], name_rp12=self.label_rp[5])
-
+                name_rp23=self.label_rp[3], name_rp13=self.label_rp[4], name_rp12=self.label_rp[5],
+                bc_type=bc_type)
+  
     def _create_lbc_face_pairs(self):
         '''
         Create pairs of faces for linear boundary conditions.

@@ -1,5 +1,5 @@
 '''
-Run the PBC-3D analysis for Open Hole Plate (OHP) steel RVE.
+Run the LBC-3D analysis for Open Hole Plate (OHP) steel RVE.
 '''
 
 import os
@@ -8,12 +8,12 @@ import numpy as np
 import json
 
 from AbaqusTools.functions import clean_pyc_files, clean_temporary_files
-from AbaqusTools.pbc import PBC_3DOrthotropic
+from AbaqusTools.lin_bc import LBC_3DOrthotropic_2
 
 
 COMMAND = 'abaqus cae noGUI='
 
-fname_py = 'job-pbc-3d.py'
+fname_py = 'job-lbc-3d.py'
 
 
 if __name__ == '__main__':
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         print('>>> =============================================')
 
 
-    engineering_constants = PBC_3DOrthotropic.calculate_engineering_constants(StiffMatrix)
+    engineering_constants = LBC_3DOrthotropic_2.calculate_engineering_constants(StiffMatrix)
 
     with open('homogenized-properties.json', 'w') as f:
         json.dump(engineering_constants, f, indent=4)

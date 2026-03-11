@@ -21,10 +21,11 @@ if __name__ == '__main__':
     t0 = time.time()
     
     clean_pyc_files()
-    
-    with open('parameters.json', 'r') as f:
-        default_parameters = json.load(f)
 
+    with open('default-parameters.json', 'r') as f:
+        default_parameters = json.load(f)
+    
+    index_run = default_parameters['index_run']
     StiffMatrix = np.zeros([6,6])
 
     for i in range(6):
@@ -42,7 +43,7 @@ if __name__ == '__main__':
         
         clean_temporary_files('%d'%(i))
         
-        name_job = 'Job_OHP_0_%d'%(i)
+        name_job = 'Job_OHP_%d_%d'%(index_run, i)
 
         with open(name_job+'-RF.dat', 'r') as f:
             lines = f.readlines()

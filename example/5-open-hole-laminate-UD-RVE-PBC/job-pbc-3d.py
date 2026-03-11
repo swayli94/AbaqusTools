@@ -41,7 +41,7 @@ class TestModel_PBC_3D(LaminateModel):
 
         self.create_pbc_constraints()
         
-        # self.create_bc_pinned()
+        self.create_bc_pinned()
         
         self.create_bc_displacement()
     
@@ -128,20 +128,82 @@ class TestModel_PBC_3D(LaminateModel):
         '''           
         a = self.rootAssembly
         
-        self.model.DisplacementBC(name='Pinned-X0Y1Z0', createStepName='Initial', 
-            region=a.sets['plate.vertex_010'],
+        self.model.DisplacementBC(name='Pinned-X0Y0Z0', createStepName='Initial', 
+            region=a.sets['plate.vertex_000'],
             u1=0.0, u2=0.0, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
             amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
-
-        self.model.DisplacementBC(name='Pinned-X1Y1Z0', createStepName='Initial', 
-            region=a.sets['plate.vertex_110'],
-            u1=UNSET, u2=0.0, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-            amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
         
-        self.model.DisplacementBC(name='Pinned-X1Y0Z0', createStepName='Initial', 
-            region=a.sets['plate.vertex_100'],
-            u1=UNSET, u2=UNSET, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
-            amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
+        if self.strain_component == 0:
+            # epsilon_11
+            self.model.DisplacementBC(name='Pinned-X0Y1Z0', createStepName='Initial', 
+                region=a.sets['plate.vertex_010'],
+                u1=0.0, u2=UNSET, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
+                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
+            
+            self.model.DisplacementBC(name='Pinned-X0Y0Z1', createStepName='Initial', 
+                region=a.sets['plate.vertex_001'],
+                u1=0.0, u2=0.0, u3=UNSET, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
+                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
+            
+        elif self.strain_component == 1:
+            # epsilon_22
+            self.model.DisplacementBC(name='Pinned-X0Y0Z1', createStepName='Initial', 
+                region=a.sets['plate.vertex_001'],
+                u1=0.0, u2=0.0, u3=UNSET, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
+                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
+            
+            self.model.DisplacementBC(name='Pinned-X1Y0Z0', createStepName='Initial', 
+                region=a.sets['plate.vertex_100'],
+                u1=UNSET, u2=0.0, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
+                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
+            
+        elif self.strain_component == 2:
+            # epsilon_33
+            self.model.DisplacementBC(name='Pinned-X1Y0Z0', createStepName='Initial', 
+                region=a.sets['plate.vertex_100'],
+                u1=UNSET, u2=0.0, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
+                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
+            
+            self.model.DisplacementBC(name='Pinned-X0Y1Z0', createStepName='Initial', 
+                region=a.sets['plate.vertex_010'],
+                u1=0.0, u2=UNSET, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
+                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
+            
+        elif self.strain_component == 3:
+            # gamma_23
+            self.model.DisplacementBC(name='Pinned-X1Y0Z0', createStepName='Initial', 
+                region=a.sets['plate.vertex_100'],
+                u1=UNSET, u2=0.0, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
+                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
+            
+            self.model.DisplacementBC(name='Pinned-X0Y1Z0', createStepName='Initial', 
+                region=a.sets['plate.vertex_010'],
+                u1=0.0, u2=UNSET, u3=UNSET, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
+                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
+            
+        elif self.strain_component == 4:
+            # gamma_13
+            self.model.DisplacementBC(name='Pinned-X0Y1Z0', createStepName='Initial', 
+                region=a.sets['plate.vertex_010'],
+                u1=0.0, u2=UNSET, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
+                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
+            
+            self.model.DisplacementBC(name='Pinned-X1Y0Z0', createStepName='Initial', 
+                region=a.sets['plate.vertex_100'],
+                u1=UNSET, u2=0.0, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
+                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
+            
+        elif self.strain_component == 5:
+            # gamma_12
+            self.model.DisplacementBC(name='Pinned-X0Y1Z0', createStepName='Initial', 
+                region=a.sets['plate.vertex_010'],
+                u1=0.0, u2=UNSET, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
+                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
+            
+            self.model.DisplacementBC(name='Pinned-X1Y0Z0', createStepName='Initial', 
+                region=a.sets['plate.vertex_100'],
+                u1=UNSET, u2=0.0, u3=0.0, ur1=UNSET, ur2=UNSET, ur3=UNSET, 
+                amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
         
     def create_bc_displacement(self):
         '''
