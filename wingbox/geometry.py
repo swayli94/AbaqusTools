@@ -447,6 +447,23 @@ class CutoutGeometry:
                 return (self.x3d_left_edge[i], self.y3d_left_edge[i], self.z3d_left_edge[i])
             elif side == 'right':
                 return (self.x3d_right_edge[i], self.y3d_right_edge[i], self.z3d_right_edge[i])
+        elif feature == 'corner':
+            if side == 'upper-left':
+                return (self.x3d_upper_edge[0], self.y3d_upper_edge[0], self.z3d_upper_edge[0])
+            elif side == 'upper-right':
+                return (self.x3d_upper_edge[-1], self.y3d_upper_edge[-1], self.z3d_upper_edge[-1])
+            elif side == 'lower-left':
+                return (self.x3d_lower_edge[0], self.y3d_lower_edge[0], self.z3d_lower_edge[0])
+            elif side == 'lower-right':
+                return (self.x3d_lower_edge[-1], self.y3d_lower_edge[-1], self.z3d_lower_edge[-1])
+            elif side == 'left-upper':
+                return (self.x3d_left_edge[-1], self.y3d_left_edge[-1], self.z3d_left_edge[-1])
+            elif side == 'left-lower':
+                return (self.x3d_left_edge[0], self.y3d_left_edge[0], self.z3d_left_edge[0])
+            elif side == 'right-upper':
+                return (self.x3d_right_edge[-1], self.y3d_right_edge[-1], self.z3d_right_edge[-1])
+            elif side == 'right-lower':
+                return (self.x3d_right_edge[0], self.y3d_right_edge[0], self.z3d_right_edge[0])
         elif feature == 'fillet-curve':
             if side == 'upper-left':
                 return (self.x3d_upper_left_fillet[i], self.y3d_upper_left_fillet[i], self.z3d_upper_left_fillet[i])
@@ -617,6 +634,15 @@ class WingSectionGeometry:
             cutout.update_attributes(y_upper=None, y_lower=None,
                                 chord=self.chord, twist_degrees=self.twist_degrees,
                                 xLE=self.xLE, yLE=self.yLE, zLE=self.zLE)
+            
+        # Calculate the wing cover coordinates
+        _xx_wing_cover = np.linspace(self.x_front_spar, self.x_rear_spar, num=self._n_points, endpoint=True)
+        self.x3d_upper_cover, self.y3d_upper_cover = self.get_airfoil_upper_surface(
+                _xx_wing_cover, input_relative_coordinates=True)
+        self.x3d_lower_cover, self.y3d_lower_cover = self.get_airfoil_lower_surface(
+                _xx_wing_cover, input_relative_coordinates=True)
+        self.z3d_upper_cover = np.ones_like(self.x3d_upper_cover) * self.zLE
+        self.z3d_lower_cover = np.ones_like(self.x3d_lower_cover) * self.zLE
 
     def _check_intersections(self):
         '''
@@ -815,6 +841,68 @@ class WingSectionGeometry:
         return new_x, new_y
 
     
+    def get_selection_points(self, feature='cover', side='upper', index=0):
+        '''
+        Get the selection points of all features of the wing section.
+        
+        Parameters
+        ---------------
+        feature: str
+            'cover', 'spar', 'stringer' or 'cutout',
+            indicating the feature type.
+        side: str
+            'upper' or 'lower' for cover and stringer;
+            None for spar and cutout.
+        index: int
+            index of the feature instance (starting from 0),
+            in the x increasing order for spars, stringers, and cutouts.
+        
+        Returns
+        ---------------
+        points: list of tuples
+            List of (x, y, z) coordinates (mm) of the selection points of the features.
+        '''
+        points = []
+        if feature == 'spar':
+            points.append(self.spars[index].get_selection_point(feature='spar', side=None))
+        
+        elif feature == 'stringer':
+            points.append(self.stringers[index].get_selection_point(feature='web', side=side))
+            points.append(self.stringers[index].get_selection_point(feature='flange', side=side))
+        
+        elif feature == 'cutout':
+            for _side in ['upper', 'lower', 'left', 'right']:
+                points.append(self.cutouts[index].get_selection_point(feature='edge', side=_side))
+            for _side in ['upper-left', 'upper-right', 'lower-left', 'lower-right']:
+                points.append(self.cutouts[index].get_selection_point(feature='fillet-curve', side=_side))
+
+        elif feature == 'cover':
+            # The cover is splitted into pieces by spars and stringers,
+            # so we take the mid points of the cover segments between the spars and stringers as selection points.
+            x_segments = [spar.x for spar in self.spars] + [stringer.x for stringer in self.stringers]
+            x_segments.sort()
+            x_mid_points = []
+            for i in range(len(x_segments)-1):
+                x_mid_points.append(0.5 * (x_segments[i] + x_segments[i+1]))
+
+            if side == 'upper':
+                new_x, new_y = self.get_airfoil_upper_surface(x=x_mid_points, input_relative_coordinates=True)
+            elif side == 'lower':
+                new_x, new_y = self.get_airfoil_lower_surface(x=x_mid_points, input_relative_coordinates=True)
+            else:
+                raise ValueError('Invalid side specified for cover: should be "upper" or "lower".', side)
+        
+            new_z = np.ones_like(new_x) * self.zLE
+            points = np.concatenate((new_x[:, np.newaxis], new_y[:, np.newaxis], new_z[:, np.newaxis]), axis=1)
+            points = points.tolist()
+            points = [(float(p[0]), float(p[1]), float(p[2])) for p in points]
+        
+        else:
+            raise ValueError('Invalid feature or side specified.', feature, side, index)
+
+        return points
+
+
 def plot_wing_section_geometry(wing_section_geometry):
     '''
     Plot the wing section geometry using matplotlib.
@@ -849,8 +937,8 @@ def plot_wing_section_geometry(wing_section_geometry):
         ax.plot(st.x3d_lower_web,    st.y3d_lower_web,    'r-', lw=st.t, label='_nolegend_')
         ax.plot(st.x3d_lower_flange, st.y3d_lower_flange, 'r-', lw=st.t, label='_nolegend_')
 
-    # Cutouts — assemble closed outline: left → upper-left fillet → upper → upper-right fillet
-    #           → right (reversed) → lower-right fillet → lower (reversed) → lower-left fillet
+    # Cutouts - assemble closed outline: left -> upper-left fillet -> upper -> upper-right fillet
+    #           -> right (reversed) -> lower-right fillet -> lower (reversed) -> lower-left fillet
     for i, co in enumerate(wsg.cutouts):
         lbl = 'Cutout' if i == 0 else '_nolegend_'
         xx = np.concatenate([
@@ -937,6 +1025,8 @@ def plot_selection_points(wing_section_geometry, fig, ax):
 
     # --- Cutouts ---
     edge_sides   = ['upper', 'lower', 'left', 'right']
+    corner_sides = ['upper-left', 'upper-right', 'lower-left', 'lower-right',
+                    'left-upper', 'left-lower', 'right-upper', 'right-lower']
     fillet_sides = ['upper-left', 'upper-right', 'lower-left', 'lower-right']
 
     for j, co in enumerate(wsg.cutouts):
@@ -944,6 +1034,11 @@ def plot_selection_points(wing_section_geometry, fig, ax):
             p = co.get_selection_point('edge', side)
             ax.scatter(p[0], p[1], s=40, marker='o', c='seagreen', zorder=6,
                        label='Cutout edge' if (j == 0 and k == 0) else '_nolegend_')
+
+        for k, side in enumerate(corner_sides):
+            p = co.get_selection_point('corner', side)
+            ax.scatter(p[0], p[1], s=40, marker='s', c='darkorange', zorder=6,
+                       label='Cutout corner' if (j == 0 and k == 0) else '_nolegend_')
 
         for k, side in enumerate(fillet_sides):
             p = co.get_selection_point('fillet-curve', side)
@@ -955,6 +1050,13 @@ def plot_selection_points(wing_section_geometry, fig, ax):
             ax.scatter(p[0], p[1], s=30, marker='x', c='seagreen', zorder=6,
                        label='Cutout fillet center' if (j == 0 and k == 0) else '_nolegend_')
 
+    # --- Cover ---
+    for k, side in enumerate(['upper', 'lower']):
+        pts = wsg.get_selection_points('cover', side=side)
+        ax.scatter([p[0] for p in pts], [p[1] for p in pts],
+                   s=50, marker='P', c='mediumpurple', zorder=6,
+                   label='Cover (%s)'%(side) if k == 0 else 'Cover (%s)'%(side))
+
     ax.legend(loc='upper right', fontsize=7, ncol=2)
     return fig, ax
 
@@ -964,11 +1066,15 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
 
     path = os.path.dirname(os.path.abspath(__file__))
+    fname = os.path.join(path, 'default-parameters.json')
+    with open(fname, 'r') as f:
+        parameters = json.load(f)
 
-    params_list = json.load(open(os.path.join(path, 'default-parameters.json'), 'r'))
-    geo_params = params_list[0]
+    pGeo = parameters['pGeo']
+    pMesh = parameters['pMesh']
+    pRun = parameters['pRun']
 
-    for section_params in geo_params['sections']:
+    for section_params in pGeo['sections']:
         section_params['airfoil'] = os.path.join(path, section_params['airfoil'])
         wsg = WingSectionGeometry()
         wsg.set_parameters(section_params)
@@ -976,3 +1082,4 @@ if __name__ == '__main__':
         plot_selection_points(wsg, fig, ax)
         plt.tight_layout()
         plt.show()
+    
