@@ -18,12 +18,12 @@ path = os.path.dirname(os.path.abspath(__file__))
 from geometry import WingSectionGeometry
 
 
-class WingboxPart(Part):
+class LoftingPart(Part):
     '''
-    Class for wingbox part.
+    Class for wingbox lofting part.
     '''
     def __init__(self, name_part, model, pGeo, pMesh):
-        super(WingboxPart,self).__init__(model, pGeo, pMesh)
+        super(LoftingPart,self).__init__(model, pGeo, pMesh)
         self.name_part = name_part
 
         self.sections = []
@@ -32,7 +32,6 @@ class WingboxPart(Part):
             wsg = WingSectionGeometry()
             wsg.set_parameters(section_params)
             self.sections.append(wsg)
-            print('WingboxPart: section %d initialized.'%(len(self.sections)))
 
     def create_sketch(self):
         '''
@@ -40,48 +39,9 @@ class WingboxPart(Part):
         
         - Create Sketch
         '''
-        self._create_sketch_rib()
         self._create_sketch_section_for_sweep()
         self._create_sketch_reference_plane()
-    
-    def _create_sketch_rib(self):
-        '''
-        Create stand-alone sketch for rib: cover + cutout
-        '''
-        #* Create the open-hole plate sketch in x-y plane
-        for i, section in enumerate(self.sections):
-            
-            mySkt = self.model.ConstrainedSketch(name='rib_%d'%(i), sheetSize=section.chord*3)
-            
-            cover_u = np.concatenate((section.x3d_upper_cover[:,np.newaxis], section.y3d_upper_cover[:,np.newaxis]), axis=1) # [n,2]
-            cover_l = np.concatenate((section.x3d_lower_cover[:,np.newaxis], section.y3d_lower_cover[:,np.newaxis]), axis=1) # [n,2]
-            
-            mySkt.Spline(points=tuple(cover_u))
-            mySkt.Spline(points=tuple(cover_l))
-            
-            for j in [0, -1]:
-                pt1 = section.spars[j].get_selection_point(feature='root', side='upper')[:2]
-                pt2 = section.spars[j].get_selection_point(feature='root', side='lower')[:2]
-                mySkt.Line(point1=pt1, point2=pt2)
 
-            for j, cutout in enumerate(section.cutouts):
-                # edge
-                for side1, side2 in [('upper-left', 'upper-right'), ('lower-left', 'lower-right'),
-                                     ('left-lower', 'left-upper'), ('right-lower', 'right-upper')]:
-                    pt1 = cutout.get_selection_point(feature='corner', side=side1)[:2]
-                    pt2 = cutout.get_selection_point(feature='corner', side=side2)[:2]
-                    mySkt.Line(point1=pt1, point2=pt2)
-                # fillet
-                for side_corner, side1, side2 in [
-                    ('upper-left', 'upper-left', 'left-upper'),
-                    ('upper-right', 'right-upper', 'upper-right'),
-                    ('lower-left', 'left-lower', 'lower-left'),
-                    ('lower-right', 'lower-right', 'right-lower')]:
-                    pt1 = cutout.get_selection_point(feature='corner', side=side1)[:2]
-                    pt2 = cutout.get_selection_point(feature='corner', side=side2)[:2]
-                    pt3 = cutout.get_selection_point(feature='fillet-curve', side=side_corner)[:2]
-                    mySkt.Arc3Points(point1=pt1, point2=pt2, point3=pt3)
-    
     def _create_sketch_section_for_sweep(self):
         '''
         Create stand-alone sketch for sweeping: cover + spar + stringer
@@ -119,56 +79,10 @@ class WingboxPart(Part):
         mySkt.rectangle(point1=(0.0, 0.0), point2=(10.0, 10.0))
         
     def create_part(self):
-        
-        for i in range(len(self.sections)):
-            self._create_part_rib(i)
-            
-        self._create_part_lofting()
-
-    def _create_part_rib(self, i_section):
-        '''
-        Create part for rib via Abaqus Module: Part
-        '''
-        section = self.sections[i_section]
-        name = 'rib_%d'%(i_section)
-        
-        myPrt = self.model.Part(name=name, dimensionality=THREE_D, type=DEFORMABLE_BODY)
-
-        #* Reference plane and axis
-        myPrt.DatumPlaneByPrincipalPlane(principalPlane=XYPLANE, offset=section.zLE)
-        self.rename_feature(myPrt, 'XYPLANE')
-        myPrt.DatumAxisByPrincipalAxis(principalAxis=XAXIS)
-        self.rename_feature(myPrt, 'XAXIS')
-        myPrt.DatumAxisByPrincipalAxis(principalAxis=YAXIS)
-        self.rename_feature(myPrt, 'YAXIS')
-        myPrt.DatumAxisByPrincipalAxis(principalAxis=ZAXIS)
-        self.rename_feature(myPrt, 'ZAXIS')
-        self.create_datum_csys_3p(myPrt, 'csys_plate', origin=[0.0, 0.0, 0.0],
-                                    dx=[1, 0, 0], dy=[0, 1, 0])
-
-        #* Plane for plate sketch
-        transform = myPrt.MakeSketchTransform(
-            sketchPlane=self.get_datum_by_name(myPrt, 'XYPLANE'),
-            sketchUpEdge=self.get_datum_by_name(myPrt, 'XAXIS'), 
-            sketchPlaneSide=SIDE1, sketchOrientation=BOTTOM, origin=(0.0, 0.0, 0.0))
-    
-        #* Section sketch
-        mySkt = self.model.ConstrainedSketch(name='__profile__', sheetSize=section.chord*10, transform=transform)
-        mySkt.sketchOptions.setValues(gridOrigin=(0.0, 0.0), gridAngle=0.0)
-        mySkt.retrieveSketch(sketch=self.model.sketches[name])
-        
-        #* Part by Shell (Planer)
-        myPrt.BaseShell(sketch=mySkt)
-
-        #* Post procedure
-        myPrt.setValues(geometryRefinement=EXTRA_FINE)
-        del self.model.sketches['__profile__']
-
-    def _create_part_lofting(self):
         '''
         Create part by shell lofting
         '''
-        myPrt = self.model.Part(name='lofted_part', dimensionality=THREE_D, type=DEFORMABLE_BODY)
+        myPrt = self.model.Part(name=self.name_part, dimensionality=THREE_D, type=DEFORMABLE_BODY)
 
         #* Reference plane and axis
         myPrt.DatumAxisByPrincipalAxis(principalAxis=XAXIS)
@@ -272,8 +186,85 @@ class WingboxPart(Part):
 
     def create_set(self):
         '''
-        Create sets
+        Create sets for all segments of the lofting_part, including:
+        - cover faces (upper/lower)
+        - spar faces (each spar)
+        - stringer web, flange faces (each stringer, upper/lower)
+        - spar edges (upper/lower edge of each spar)
+        - stringer edges (root/corner/tip edge of each stringer)
         '''
+        n_sections = len(self.sections)
+
+        def mid_pt(p0, p1):
+            return (0.5*(p0[0]+p1[0]), 0.5*(p0[1]+p1[1]), 0.5*(p0[2]+p1[2]))
+
+        def mid_pts(pts0, pts1):
+            return [mid_pt(p0, p1) for p0, p1 in zip(pts0, pts1)]
+
+        # ============================================================
+        # faces and edges for each wingbox segment
+        # ============================================================
+        myPrt = self.model.parts[self.name_part]
+
+        for i_section in range(n_sections - 1):
+            sec0 = self.sections[i_section]
+            sec1 = self.sections[i_section + 1]
+            tag = 'wingbox%d' % i_section
+
+            # Cover faces (one face per cover segment between spars/stringers)
+            for side in ['upper', 'lower']:
+                pts0 = sec0.get_selection_points(feature='cover', side=side, index=0)
+                pts1 = sec1.get_selection_points(feature='cover', side=side, index=0)
+                findAt_points=mid_pts(pts0, pts1)
+                
+                for pt in findAt_points:
+                    self.create_datum_point(myPrt, pt[0], pt[1], pt[2])
+                
+                self.create_geometry_set(
+                    name_set='face_%s_cover_%s' % (tag, side),
+                    findAt_points=findAt_points,
+                    geometry='face',
+                    getClosest=True, searchTolerance=1E-2)
+
+            # Spar faces
+            for j in range(sec0.n_spars):
+                pts0 = sec0.get_selection_points(feature='spar', side=None, index=j)
+                pts1 = sec1.get_selection_points(feature='spar', side=None, index=j)
+                self.create_geometry_set(
+                    name_set='face_%s_spar_%d' % (tag, j),
+                    findAt_points=mid_pts(pts0, pts1),
+                    geometry='face')
+
+            # Stringer faces (web + flange per side, combined into one set)
+            for j in range(sec0.n_stringers):
+                for side in ['upper', 'lower']:
+                    pts0 = sec0.get_selection_points(feature='stringer', side=side, index=j)
+                    pts1 = sec1.get_selection_points(feature='stringer', side=side, index=j)
+                    self.create_geometry_set(
+                        name_set='face_%s_stringer_%d_%s' % (tag, j, side),
+                        findAt_points=mid_pts(pts0, pts1),
+                        geometry='face')
+
+            # Spar edges (upper/lower junction with cover, longitudinal in z)
+            for j in range(sec0.n_spars):
+                for side in ['upper', 'lower']:
+                    pt0 = sec0.spars[j].get_selection_point(feature='root', side=side)
+                    pt1 = sec1.spars[j].get_selection_point(feature='root', side=side)
+                    self.create_geometry_set(
+                        name_set='edge_%s_spar_%d_%s' % (tag, j, side),
+                        findAt_points=[mid_pt(pt0, pt1)],
+                        geometry='edge')
+
+            # Stringer edges (root/corner/tip, upper/lower, longitudinal in z)
+            for j in range(sec0.n_stringers):
+                for side in ['upper', 'lower']:
+                    for feat in ['root', 'corner', 'tip']:
+                        pt0 = sec0.stringers[j].get_selection_point(feature=feat, side=side)
+                        pt1 = sec1.stringers[j].get_selection_point(feature=feat, side=side)
+                        self.create_geometry_set(
+                            name_set='edge_%s_stringer_%d_%s_%s' % (tag, j, side, feat),
+                            findAt_points=[mid_pt(pt0, pt1)],
+                            geometry='edge')
 
     def set_seeding(self):
         '''

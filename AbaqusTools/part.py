@@ -240,7 +240,7 @@ class Part(object):
             myPrt.Set(edges=edges, name=name_set)
         
         elif geometry=='face':
-            faces = Part.get_faces(myPrt, findAt_points)
+            faces = Part.get_faces(myPrt, findAt_points, getClosest, searchTolerance)
             myPrt.Set(faces=faces, name=name_set)
         
         elif geometry=='cell':
@@ -510,7 +510,7 @@ class Part(object):
             return myPrt.edges[e.index:e.index+1]
 
     @staticmethod
-    def get_face(myPrt, findAt_point, toArray=False):
+    def get_face(myPrt, findAt_point, toArray=False, getClosest=False, searchTolerance=1E-6):
         '''
         Get a Face/FaceArray object by the `findAt` command.
         
@@ -525,6 +525,12 @@ class Part(object):
         toArray: bool
             whether output the Face object or FaceArray
             
+        getClosest: bool
+            whether use `getClosest` to find an edge
+            
+        searchTolerance: float
+            the distance within which the closest object must lie
+        
         Returns
         -------------
         face: Abaqus Face/FaceArray object
@@ -540,7 +546,17 @@ class Part(object):
         
         `faces[0]` is a `Face` object.
         '''
-        f = myPrt.faces.findAt((findAt_point))
+        
+        if getClosest:
+            # The first object in the sequence is a Face that is close to the input point referred to by the key. 
+            # The second object in the sequence is a sequence of floats that specifies the X-, Y-, and Z-location 
+            # of the closest point on the Face to the given point. 
+            s = myPrt.faces.getClosest(coordinates=(findAt_point,), searchTolerance=searchTolerance)
+            f, closest_point = s[0]
+        else:
+            # A face object
+            f = myPrt.faces.findAt((findAt_point))
+            
         if not toArray:
             return f
         else:
@@ -674,7 +690,7 @@ class Part(object):
         return edges
 
     @staticmethod
-    def get_faces(myPrt, findAt_points):
+    def get_faces(myPrt, findAt_points, getClosest=False, searchTolerance=1000):
         '''
         Get a FaceArray (Sequence) by the `findAt` command.
         
@@ -691,6 +707,12 @@ class Part(object):
             
             `findAt_points` can be either a tuple of one point, or a list of point tuples.
             
+        getClosest: bool
+            whether use `getClosest` to find an edge
+            
+        searchTolerance: float
+            the distance within which the closest object must lie
+        
         Returns
         -------------
         faces: Abaqus FaceArray (Sequence)
@@ -702,7 +724,7 @@ class Part(object):
         faces = None
         for pt in findAt_points:
             
-            f = Part.get_face(myPrt, pt, toArray=True)
+            f = Part.get_face(myPrt, pt, toArray=True, getClosest=getClosest, searchTolerance=searchTolerance)
             
             if faces == None:
                 faces = f

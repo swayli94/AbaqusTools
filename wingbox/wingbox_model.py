@@ -7,7 +7,8 @@ import json
 import numpy as np
 
 from AbaqusTools import Model, IS_ABAQUS
-from wingbox_part import WingboxPart
+from lofting_part import LoftingPart
+from rib_part import RibPart
 
 if IS_ABAQUS:
     from abaqus import *
@@ -30,20 +31,25 @@ class WingboxModel(Model):
     
     def setup_parts(self):
         
-        self.wingbox = WingboxPart(name_part='wingbox',
+        self.lofting = LoftingPart(name_part='lofting',
                         model=self.model, pGeo=self.pGeo, pMesh=self.pMesh)
-        self.wingbox.build()
+        self.lofting.build()
+        
+        self.ribs = []
+        for i in range(len(self.pGeo['sections'])):
+            rib = RibPart(model=self.model, pGeo=self.pGeo, pMesh=self.pMesh, index_rib=i)
+            rib.build()
+            self.ribs.append(rib)
     
     def setup_assembly(self):
         
         a = self.rootAssembly
+        p = self.model.parts['lofting']
+        a.Instance(name='lofting', part=p, dependent=ON)
         
-        p = self.model.parts['lofted_part']
-        a.Instance(name='lofted_part', part=p, dependent=ON)
-        
-        for i in range(len(self.wingbox.sections)):
-            p = self.model.parts['rib_%d'%(i)]
-            a.Instance(name='section_%d'%(i), part=p, dependent=ON)
+        for i, rib in enumerate(self.ribs):
+            p = self.model.parts[rib.name_part]
+            a.Instance(name=rib.name_part, part=p, dependent=ON)
     
     def setup_steps(self):
         '''
