@@ -1,7 +1,9 @@
 
 *.bat
 *.pyc
+*.rpy
 
+.vscode/
 backup/
 build/
 data/

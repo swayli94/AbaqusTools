@@ -14,7 +14,8 @@ AbaqusTools addresses these challenges by providing intuitive Python classes and
 - Automate repetitive modeling tasks
 - Process simulation results efficiently
 - Work with composite materials and layup designs
-- Apply periodic boundary conditions
+- Apply periodic boundary conditions (PBC) and linear boundary conditions (LBC)
+- Evaluate composite failure with the LaRC05 criterion
 - Run batch analyses and parameter studies
 
 ## Key Features
@@ -46,9 +47,22 @@ AbaqusTools addresses these challenges by providing intuitive Python classes and
 
 ### Periodic Boundary Conditions
 
-- `PeriodicBC` class for setting up complex periodic boundary conditions
-- Automated constraint equation generation
-- Support for various PBC types and loading conditions
+- `PeriodicBC` base class with specialized subclasses: `PBC_Beam` (beam homogenization) and `PBC_3DOrthotropic` (3D RVE homogenization)
+- Automated constraint equation generation using ABAQUS `*EQUATION` keyword
+- Node pairing with automatic exclusion of forbidden nodes (corners/edges)
+
+### Linear Boundary Conditions
+
+- `LBC_3DOrthotropic` class for displacement-driven homogenization of 3D orthotropic RVEs
+- Applies linear deformation boundary conditions as an alternative to PBC
+- Automated node-set creation on opposite faces for engineering-constant extraction
+
+### Composite Failure Criteria
+
+- `UVARM` class implementing the LaRC05 failure criterion in Python (translated from Fortran subroutine)
+- `PlyProperty` for storing fiber and matrix material properties (e.g. IM7/8551-7)
+- `FailureCriteria` for matrix cracking, splitting, fiber tension, and fiber kinking indices
+- Compatible with both 2D and 3D element formulations
 
 ### Utility Functions
 
@@ -111,7 +125,7 @@ layup = LayupParameters(THK_PLY=0.25)
 candidate_layup = layup.candidate_composite_layup(n_ply=16, index=0)
 ```
 
-### Results Processing
+### Extracting ODB Results
 
 ```python
 from AbaqusTools import OdbOperation
@@ -121,14 +135,17 @@ odb = OdbOperation('job_name')
 # Extract field data, nodal results, etc.
 ```
 
-### Periodic Boundary Conditions
+### Applying Boundary Conditions
 
 ```python
-from AbaqusTools.pbc import PeriodicBC
+from AbaqusTools.pbc import PBC_3DOrthotropic
+from AbaqusTools.lin_bc import LBC_3DOrthotropic
 
-# Setup periodic boundary conditions
-pbc = PeriodicBC()
-pbc.setup_pbc_equations(model, part_instance)
+# Periodic boundary conditions for 3D RVE homogenization
+pbc = PBC_3DOrthotropic(model, instance)
+
+# Or use linear boundary conditions
+lbc = LBC_3DOrthotropic(model, instance)
 ```
 
 ## Running Scripts
@@ -163,19 +180,20 @@ cd docs/build/html
 
 ## Project Structure
 
-```
+```text
 AbaqusTools/
 ├── AbaqusTools/          # Main package
 │   ├── __init__.py       # Package initialization and environment detection
 │   ├── model.py          # Model and NodeOperation classes
 │   ├── part.py           # Part class for geometry and meshing
 │   ├── odb.py            # OdbOperation for results processing
-│   ├── pbc.py            # PeriodicBC for boundary conditions
+│   ├── pbc.py            # PeriodicBC, PBC_Beam, PBC_3DOrthotropic classes
+│   ├── lin_bc.py         # LBC_3DOrthotropic classes for linear boundary conditions
 │   ├── functions.py      # Utility functions and LayupParameters
-│   └── larc05.py         # Additional composite material functions
+│   └── larc05.py         # LaRC05 failure criterion (UVARM, PlyProperty, FailureCriteria)
 ├── docs/                 # Sphinx documentation
 ├── example/              # Example scripts
-└── LICENSE              # MIT License
+└── LICENSE               # MIT License
 ```
 
 ## Environment Detection
