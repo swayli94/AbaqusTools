@@ -534,7 +534,7 @@ class Model(object):
                 2560.0, 1590.0, 73.0, 185.0, 90.0, 92.5), ), alpha=1.0)
             
             self.model.materials['IM7/8551-7'].hashinDamageInitiation.DamageEvolution(
-                type=ENERGY, table=((92.0, 80.0, 0.21, 0.8), ))
+                type=ENERGY, table=((92.0, 80.0, 0.21, 0.8), )) # kJ/m^2 (compatible with N/mm)
 
     def create_material_steel(self, unit_length='mm'):
         '''

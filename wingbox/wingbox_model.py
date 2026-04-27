@@ -166,14 +166,19 @@ class WingboxModel(Model):
                     amplitude=UNSET)
         
     def setup_outputs(self):
-        
+
         self.model.FieldOutputRequest(name='F-Output-1', 
-            createStepName='Loading', variables=('S', 'E', 'U', 'RF', 'P'), 
+            createStepName='Loading', variables=('S', 'E', 'U', 'P'),
             frequency=LAST_INCREMENT)
+        
+        variables = ('S', 'E')
+        if self.pMesh['failure_model'] == 'Hashin':
+            variables_hashin = ('DMICRT', 'HSNFTCRT', 'HSNFCCRT', 'HSNMTCRT', 'HSNMCCRT')
+            variables += variables_hashin
 
         for i, name_layup in enumerate(self.lofting.name_layups):
             self.model.FieldOutputRequest(name='Layup-Output-lofting-%d' % i, 
-                createStepName='Loading', variables=('S', 'E', 'SDV'),
+                createStepName='Loading', variables=variables,
                 frequency=LAST_INCREMENT, 
                 layupNames=('lofting.%s' % name_layup, ), 
                 layupLocationMethod=SPECIFIED, outputAtPlyTop=False, outputAtPlyMid=True, 
@@ -182,7 +187,7 @@ class WingboxModel(Model):
         for i, rib in enumerate(self.ribs):
             for j, name_layup in enumerate(rib.name_layups):
                 self.model.FieldOutputRequest(name='Layup-Output-rib%d-%d' % (i, j), 
-                    createStepName='Loading', variables=('S', 'E', 'SDV'),
+                    createStepName='Loading', variables=variables,
                     frequency=LAST_INCREMENT, 
                     layupNames=('%s.%s' % (rib.name_part, name_layup), ),
                     layupLocationMethod=SPECIFIED, outputAtPlyTop=False, outputAtPlyMid=True, 

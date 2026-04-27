@@ -171,7 +171,7 @@
         "pressure_upper_cover": 0.03,
         "pressure_lower_cover": 0.02,
 
-        "failure_model": "LaRC05",
+        "failure_model": "Hashin",
         "user_subroutine": "UVARM"
         
     },
