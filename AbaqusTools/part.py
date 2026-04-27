@@ -388,7 +388,7 @@ class Part(object):
                 origin=tuple(origin), point1=tuple(origin + dx), point2=tuple(origin + dy))
 
     @staticmethod
-    def get_vertex(myPrt, findAt_point, toArray=False, getClosest=False, searchTolerance=1000):
+    def get_vertex(myPrt, findAt_point, toArray=False, getClosest=False, searchTolerance=1E-6):
         '''
         Get a Vertex/VertexArray object by the `findAt` or `getClosest` command.
         
@@ -600,7 +600,7 @@ class Part(object):
             return myPrt.cells[c.index:c.index+1]
 
     @staticmethod
-    def get_vertices(myPrt, findAt_points, getClosest=False, searchTolerance=1000):
+    def get_vertices(myPrt, findAt_points, getClosest=False, searchTolerance=1E-6):
         '''
         Get a VertexArray (Sequence) by the `findAt` or `getClosest` command.
         
@@ -645,7 +645,7 @@ class Part(object):
         return edges
 
     @staticmethod
-    def get_edges(myPrt, findAt_points, getClosest=False, searchTolerance=1000):
+    def get_edges(myPrt, findAt_points, getClosest=False, searchTolerance=1E-6):
         '''
         Get a EdgeArray (Sequence) by the `findAt` or `getClosest` command.
         
@@ -690,7 +690,7 @@ class Part(object):
         return edges
 
     @staticmethod
-    def get_faces(myPrt, findAt_points, getClosest=False, searchTolerance=1000):
+    def get_faces(myPrt, findAt_points, getClosest=False, searchTolerance=1E-6):
         '''
         Get a FaceArray (Sequence) by the `findAt` command.
         
@@ -981,7 +981,9 @@ class Part(object):
         return thickness
 
     def set_CompositeLayup_of_set(self, myPrt, name_set, total_thickness, ply_angle, 
-                    eNum_thickness=1, symmetric=True, numIntPoints=3, name_csys_datum=None, 
+                    eNum_thickness=1, symmetric=True, numIntPoints=3,
+                    layup_orientation_definition='part global',
+                    name_csys_datum=None, name_surface=None, primaryAxisVector=None,
                     stackDirection=None, normalDirection=None,
                     rotation_angle=None, material='IM7/8551-7',
                     elementType='continuum shell'):
@@ -1010,6 +1012,12 @@ class Part(object):
             
         numIntPoints: int
             number of integration points
+            
+        layup_orientation_definition: str
+            how to define the layup orientation.
+            'Part global': by the part global coordinate system.
+            'Coordinate system': by a datum coordinate system.
+            'Discrete': normal axis defined by surface, primary axis defined by edge, datum axis or vector.
             
         name_csys_datum: str or None
             name of the datum coordinate system for the layup orientation
@@ -1041,6 +1049,9 @@ class Part(object):
         '''
         if name_set not in myPrt.sets.keys():
             return        
+        
+        ply_thickness = self.get_CompositeLayup_thickness(
+                name_set, total_thickness, ply_angle, eNum_thickness, symmetric)
         
         # CompositeLayup object
         # https://docs.software.vt.edu/abaqusv2022/English/?show=SIMACAEKERRefMap/simaker-c-compositelayuppyc.htm
@@ -1091,8 +1102,10 @@ class Part(object):
         if normalDirection is None:
             normalDirection = AXIS_3
                 
-        #* Layup Orientation: datum coordinate system
-        if name_csys_datum is not None:
+        #* Layup Orientation
+        if layup_orientation_definition == 'Coordinate system':
+            if name_csys_datum is None:
+                raise Exception('name_csys_datum should be provided when layup_orientation_definition is Coordinate system')
             
             csys_datum = self.get_datum_by_name(myPrt, name_csys_datum)
 
@@ -1106,25 +1119,35 @@ class Part(object):
                 compositeLayup.orientation.setValues(
                     additionalRotationType=ROTATION_ANGLE, 
                     angle=rotation_angle, additionalRotationField='')
-        
-        #* Layup Orientation: part global
-        else:
+
+        elif layup_orientation_definition == 'part global':
 
             compositeLayup.ReferenceOrientation(
                 orientationType=GLOBAL, localCsys=None, fieldName='', 
                 additionalRotationType=ROTATION_NONE, angle=0.0, 
                 axis=normalDirection,           # Normal direction: part global axis **
                 stackDirection=STACK_3)         # Stacking direction: element direction 3
+            
+        elif layup_orientation_definition == 'Discrete':
+            if name_surface is None:
+                raise Exception('name_surface should be provided when layup_orientation_definition is Discrete')
+            
+            compositeLayup.ReferenceOrientation(orientationType=DISCRETE, localCsys=None, 
+                additionalRotationType=ROTATION_NONE, angle=0.0, 
+                additionalRotationField='', axis=AXIS_3, stackDirection=STACK_3, 
+                normalAxisDefinition=SURFACE,
+                normalAxisRegion= myPrt.surfaces[name_surface], 
+                normalAxisDirection=AXIS_3, flipNormalDirection=False, 
+                primaryAxisDefinition=VECTOR,
+                primaryAxisVector=primaryAxisVector,
+                primaryAxisDirection=AXIS_1, flipPrimaryDirection=False)
 
         #* Plies
-        thickness = self.get_CompositeLayup_thickness(
-                name_set, total_thickness, ply_angle, eNum_thickness, symmetric)
-        
         for i in range(len(ply_angle)):
         
             compositeLayup.CompositePly(suppressed=False, plyName='ply-%d'%(i+1), 
                 region=myPrt.sets[name_set], material=material, 
-                thicknessType=SPECIFY_THICKNESS, thickness=thickness[i], 
+                thicknessType=SPECIFY_THICKNESS, thickness=ply_thickness[i], 
                 orientationType=SPECIFY_ORIENT, orientationValue=ply_angle[i], 
                 additionalRotationType=ROTATION_NONE,   # CSYS in `Plies` for rotation angle
                 additionalRotationField='',             # CSYS in `Plies` for rotation angle

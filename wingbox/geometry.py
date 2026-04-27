@@ -6,7 +6,7 @@ import os
 import numpy as np
 from scipy.interpolate import interp1d
 
-from utils import transform_curve, read_airfoil, split_upper_lower, reconstruct_airfoil
+from utils import transform_curve, read_airfoil, split_upper_lower, reconstruct_airfoil, norm_vec
 
 
 class SparGeometry:
@@ -902,6 +902,108 @@ class WingSectionGeometry:
 
         return points
 
+
+def get_primaryAxisVector_spanwise(sections, i_section, feature='cover', side='upper', index=0):
+    '''
+    Get the primary axis vector of the features of the wing section,
+    used for defining the 1-axis direction of the composite layup orientation.
+    
+    Parameters
+    ---------------
+    sections: list of WingSectionGeometry
+        list of wing sections in the wing box, sorted in the x increasing order.
+    i_section: int
+        index of the wing section in the sections list.
+    feature: str
+        'cover', 'spar', 'stringer',
+        indicating the feature type.
+    side: str
+        'upper' or 'lower' for cover and stringer;
+        None for spar and cutout.
+    index: int
+        index of the feature instance (starting from 0),
+        in the x increasing order for spars, stringers, and cutouts.
+    
+    Returns
+    ---------------
+    primary_axis_vector: tuple
+        Tuple of (x, y, z) components of the primary axis vector.
+    '''
+    if feature in ['cover', 'spar', 'stringer']:
+        if i_section < len(sections) - 1 and i_section >= 0:
+            sec0 = sections[i_section]
+            sec1 = sections[i_section + 1]
+        elif i_section == len(sections) - 1:
+            sec0 = sections[i_section - 1]
+            sec1 = sections[i_section]
+        else:
+            raise ValueError('Invalid section index.', i_section)
+    else:
+        raise ValueError('Invalid feature specified.', feature)
+
+    if feature == 'cover':
+        # The span-wise direction of the mid-chord line.
+        x_mid0 = 0.5 * (sec0.x_front_spar + sec0.x_rear_spar)
+        x_mid1 = 0.5 * (sec1.x_front_spar + sec1.x_rear_spar)
+        
+        if side == 'upper':
+            _x0, _y0 = sec0.get_airfoil_upper_surface(x=x_mid0)
+            _x1, _y1 = sec1.get_airfoil_upper_surface(x=x_mid1)
+        elif side == 'lower':
+            _x0, _y0 = sec0.get_airfoil_lower_surface(x=x_mid0)
+            _x1, _y1 = sec1.get_airfoil_lower_surface(x=x_mid1)
+        else:
+            raise ValueError('Invalid side specified for cover: should be "upper" or "lower".', side)
+        
+        primary_axis_vector = [float(_x1[0] - _x0[0]), float(_y1[0] - _y0[0]), sec1.zLE - sec0.zLE]
+        primary_axis_vector = tuple(norm_vec(primary_axis_vector))
+
+    elif feature == 'spar':
+        # The span-wise direction of the spar.
+        _x0 = sec0.spars[index].x
+        _x1 = sec1.spars[index].x
+        primary_axis_vector = [_x1 - _x0, sec1.yLE - sec0.yLE, sec1.zLE - sec0.zLE]
+        primary_axis_vector = tuple(norm_vec(primary_axis_vector))
+
+    elif feature == 'stringer':
+        # The span-wise direction of the stringer corner.
+        pt0 = sec0.stringers[index].get_selection_point(feature='corner', side=side)
+        pt1 = sec1.stringers[index].get_selection_point(feature='corner', side=side)
+        primary_axis_vector = [pt1[0] - pt0[0], pt1[1] - pt0[1], pt1[2] - pt0[2]]
+        primary_axis_vector = tuple(norm_vec(primary_axis_vector))
+
+    else:
+        raise ValueError('Invalid feature or side specified.', feature, side, index)
+        
+    return primary_axis_vector
+    
+def get_primaryAxisVector_section(section, feature='rib'):
+    '''
+    Get the primary axis vector of the features of the wing section,
+    used for defining the 1-axis direction of the composite layup orientation.
+    
+    Parameters
+    ---------------
+    section: WingSectionGeometry
+        The wing section for which to calculate the primary axis vector.
+    feature: str
+        'rib',
+        indicating the feature type.
+
+    Returns
+    ---------------
+    primary_axis_vector: tuple
+        Tuple of (x, y, z) components of the primary axis vector.
+    '''
+    if feature == 'rib':
+        # The span-wise direction of the chord.
+        angle = np.radians(section.twist_degrees)
+        primary_axis_vector = (np.cos(angle), np.sin(angle), 0)
+    else:
+        raise ValueError('Invalid feature specified.', feature)
+
+    return primary_axis_vector
+    
 
 def plot_wing_section_geometry(wing_section_geometry):
     '''

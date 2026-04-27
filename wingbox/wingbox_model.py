@@ -11,10 +11,8 @@ from lofting_part import LoftingPart
 from rib_part import RibPart
 
 if IS_ABAQUS:
-    from abaqus import *
+    from abaqus import mdb
     from abaqusConstants import *
-    from sketch import *
-    import mesh
 
 
 class WingboxModel(Model):
@@ -28,7 +26,9 @@ class WingboxModel(Model):
     def initialization(self):
         
         self.model = mdb.models[str(self.name_model)]
-    
+        
+        self.create_material_IM785517(elastic_type='ENGINEERING_CONSTANTS')
+
     def setup_parts(self):
         
         self.lofting = LoftingPart(name_part='lofting',
@@ -40,7 +40,7 @@ class WingboxModel(Model):
             rib = RibPart(model=self.model, pGeo=self.pGeo, pMesh=self.pMesh, index_rib=i)
             rib.build()
             self.ribs.append(rib)
-    
+
     def setup_assembly(self):
         
         a = self.rootAssembly

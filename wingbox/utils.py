@@ -220,3 +220,9 @@ def transform_curve(x, y, scale=1.0, rotation=0.0, dx=0.0, dy=0.0, center=[0,0])
 
     return new_x, new_y
 
+
+def mid_pt(p0, p1):
+    return (0.5*(p0[0]+p1[0]), 0.5*(p0[1]+p1[1]), 0.5*(p0[2]+p1[2]))
+
+def mid_pts(pts0, pts1):
+    return [mid_pt(p0, p1) for p0, p1 in zip(pts0, pts1)]

@@ -90,7 +90,60 @@
     },
 
     "pMesh": {
+        "global_seedPart_size": 10.0,
+        "spar_seedEdge_number": 11,
+        "stringer_seedEdge_number": 6,
 
+        "rib_seedPart_size": 5.0,
+        "rib_seedEdge_size": 5.0,
+        "fillet_seedEdge_size": 1.0,
+
+        "material_name": "IM7/8551-7",
+        "ply_thickness": 0.125,
+        "ply_numIntPts": 3,
+
+        "cover": {
+            "layup_symmetric": true,
+            "layup_orientAngles": [45, -45, 0, 0, 45, 90, -45, 0, 0, 90,
+                                45, -45, 0, 0, 45, 90, -45, 0, 0, 90]
+        },
+
+        "rib": [
+            {
+                "layup_symmetric": true,
+                "layup_orientAngles": [45, -45, 0, 0, 45, 90, -45, 0, 0, 90,
+                                45, -45, 0, 0, 45, 90, -45, 0, 0, 90]
+            },
+            {
+                "layup_symmetric": true,
+                "layup_orientAngles": [45, -45, 0, 0, 45, 90, -45, 0, 0, 90,
+                                45, -45, 0, 0, 45, 90, -45, 0, 0, 90]
+            },
+            {
+                "layup_symmetric": true,
+                "layup_orientAngles": [45, -45, 0, 0, 45, 90, -45, 0, 0, 90,
+                                45, -45, 0, 0, 45, 90, -45, 0, 0, 90]
+            }
+        ],
+
+        "spar": [
+            {
+                "layup_symmetric": true,
+                "layup_orientAngles": [45, -45, 0, 0, 45, 90, -45, 0, 0, 90,
+                                45, -45, 0, 0, 45, 90, -45, 0, 0, 90]
+            },
+            {
+                "layup_symmetric": true,
+                "layup_orientAngles": [45, -45, 0, 0, 45, 90, -45, 0, 0, 90,
+                                45, -45, 0, 0, 45, 90, -45, 0, 0, 90]
+            }
+        ],
+
+        "stringer": {
+            "layup_symmetric": true,
+            "layup_orientAngles": [45, -45, 0, 0, 45, 90, -45, 0, 0, 90,
+                                45, -45, 0, 0, 45, 90, -45, 0, 0, 90]
+        }
     },
 
     "pRun": {

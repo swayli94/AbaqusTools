@@ -15,7 +15,8 @@ if IS_ABAQUS:
 
 path = os.path.dirname(os.path.abspath(__file__))
 
-from geometry import WingSectionGeometry
+from geometry import WingSectionGeometry, get_primaryAxisVector_section
+from layup import create_shell_CompositeLayup_of_set
 
 
 class RibPart(Part):
@@ -117,6 +118,15 @@ class RibPart(Part):
         '''
         Create surfaces
         '''
+        myPrt = self.model.parts[self.name_part]
+        section = self.section
+        idx = 1
+        rib_face_pt = (
+            float(0.5 * (section.x3d_upper_cover[idx] + section.x3d_lower_cover[idx])),
+            float(0.5 * (section.y3d_upper_cover[idx] + section.y3d_lower_cover[idx])),
+            float(section.zLE))
+        faces = self.get_faces(myPrt, [rib_face_pt], getClosest=True, searchTolerance=1E-2)
+        myPrt.Surface(side1Faces=faces, name='face_rib_%d' % (self.index_rib))
 
     def create_set(self):
         '''
@@ -129,11 +139,8 @@ class RibPart(Part):
         '''
         section = self.section
 
-        def mid_pt(p0, p1):
-            return (0.5*(p0[0]+p1[0]), 0.5*(p0[1]+p1[1]), 0.5*(p0[2]+p1[2]))
-
-        def mid_pts(pts0, pts1):
-            return [mid_pt(p0, p1) for p0, p1 in zip(pts0, pts1)]
+        myPrt = self.model.parts[self.name_part]
+        myPrt.Set(faces=myPrt.faces, name='all') 
 
         # Rib face: mid-height point at the chord midpoint (between spars)
         idx = 1
@@ -185,33 +192,67 @@ class RibPart(Part):
                     geometry='edge')
 
     def set_seeding(self):
-        '''
-        Set seeding via Abaqus Module: Mesh
         
-        - Seed Edges
-        - Seed Part
-        '''
+        myPrt = self.model.parts[self.name_part]
+        myPrt.seedPart(size=self.pMesh['rib_seedPart_size'], 
+                        deviationFactor=0.1, minSizeFactor=0.1)
+
+        # Spar side edges (for seeding)
+        for j, label in [(0, 'front'), (-1, 'rear')]:
+            name_set='edge_rib_%d_spar_%s' % (self.index_rib, label)
+            myPrt.seedEdgeBySize(edges=myPrt.sets[name_set].edges,
+                    size=self.pMesh['rib_seedEdge_size'],
+                    deviationFactor=0.1, constraint=FINER)
+                
+        # Cutout edges (for seeding)
+        for k, cutout in enumerate(self.section.cutouts):
+            for side in ['upper', 'lower', 'left', 'right']:
+                name_set = 'edge_rib_%d_cutout_%d_%s' % (self.index_rib, k, side)
+                myPrt.seedEdgeBySize(edges=myPrt.sets[name_set].edges,
+                    size=self.pMesh['rib_seedEdge_size'],
+                    deviationFactor=0.1, constraint=FINER)
+            for side in ['upper-left', 'upper-right', 'lower-left', 'lower-right']:
+                name_set='edge_rib_%d_cutout_%d_fillet_%s' % (self.index_rib, k, side.replace('-', '_'))
+                myPrt.seedEdgeBySize(edges=myPrt.sets[name_set].edges,
+                    size=self.pMesh['fillet_seedEdge_size'],
+                    deviationFactor=0.1, constraint=FINER)
+
 
     def create_mesh(self):
-        '''
-        Set mesh control and create mesh via Abaqus Module: Mesh
         
-        - Assign Mesh Control
-        - Assign Stack Direction
-        - Mesh Region
-        - Mesh Part
-        '''
+        myPrt = self.model.parts[self.name_part]
+        myPrt.setMeshControls(regions=myPrt.cells, elemShape=QUAD_DOMINATED)
+        myPrt.generateMesh()
     
     def set_element_type(self):
         '''
-        Set element type via Abaqus Module: Mesh
-        
-        - Assign Element Type
+        Set element type as Shell elements (S4R) for all faces.
         '''
-    
+        myPrt = self.model.parts[self.name_part]
+        elemType1 = mesh.ElemType(elemCode=S4R, elemLibrary=STANDARD, 
+            secondOrderAccuracy=OFF, hourglassControl=DEFAULT)
+        elemType2 = mesh.ElemType(elemCode=S3, elemLibrary=STANDARD)
+        myPrt.setElementType(regions=myPrt.sets['all'], elemTypes=(elemType1, elemType2))
+
     def set_section_assignment(self):
         '''
         Set section assignment via Abaqus Module: Property
-        
-        - Assign Section
         '''
+        myPrt = self.model.parts[self.name_part]
+        params = self.pMesh['rib'][self.index_rib]
+        material_name=str(self.pMesh['material_name'])
+
+        primaryAxisVector = get_primaryAxisVector_section(
+            self.section, feature='rib')
+        
+        name_set = 'face_rib_%d' % (self.index_rib)
+        create_shell_CompositeLayup_of_set(
+            myPrt=myPrt, name_set=name_set,
+            ply_thickness=self.pMesh['ply_thickness'],
+            ply_angles=params['layup_orientAngles'],
+            name_surface=name_set,
+            primaryAxisVector=primaryAxisVector,
+            symmetric=params['layup_symmetric'],
+            numIntPoints=self.pMesh['ply_numIntPts'],
+            material_name=material_name)
+        

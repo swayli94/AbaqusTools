@@ -15,7 +15,9 @@ if IS_ABAQUS:
 
 path = os.path.dirname(os.path.abspath(__file__))
 
-from geometry import WingSectionGeometry
+from geometry import WingSectionGeometry, get_primaryAxisVector_spanwise
+from utils import mid_pt, mid_pts
+from layup import create_shell_CompositeLayup_of_set
 
 
 class LoftingPart(Part):
@@ -181,29 +183,13 @@ class LoftingPart(Part):
 
     def create_surface(self):
         '''
-        Create surfaces
-        '''
-
-    def create_set(self):
-        '''
-        Create sets for all segments of the lofting_part, including:
-        - cover faces (upper/lower)
-        - spar faces (each spar)
-        - stringer web, flange faces (each stringer, upper/lower)
-        - spar edges (upper/lower edge of each spar)
-        - stringer edges (root/corner/tip edge of each stringer)
+        Create surfaces, including:
+        - cover surfaces (upper/lower)
+        - spar surfaces (each spar)
+        - stringer surfaces (each stringer, upper/lower)
         '''
         n_sections = len(self.sections)
 
-        def mid_pt(p0, p1):
-            return (0.5*(p0[0]+p1[0]), 0.5*(p0[1]+p1[1]), 0.5*(p0[2]+p1[2]))
-
-        def mid_pts(pts0, pts1):
-            return [mid_pt(p0, p1) for p0, p1 in zip(pts0, pts1)]
-
-        # ============================================================
-        # faces and edges for each wingbox segment
-        # ============================================================
         myPrt = self.model.parts[self.name_part]
 
         for i_section in range(n_sections - 1):
@@ -216,10 +202,54 @@ class LoftingPart(Part):
                 pts0 = sec0.get_selection_points(feature='cover', side=side, index=0)
                 pts1 = sec1.get_selection_points(feature='cover', side=side, index=0)
                 findAt_points=mid_pts(pts0, pts1)
-                
-                for pt in findAt_points:
-                    self.create_datum_point(myPrt, pt[0], pt[1], pt[2])
-                
+                faces = self.get_faces(myPrt, findAt_points, getClosest=True, searchTolerance=1E-2)
+                myPrt.Surface(side1Faces=faces, name='face_%s_cover_%s' % (tag, side))
+
+            # Spar faces
+            for j in range(sec0.n_spars):
+                pts0 = sec0.get_selection_points(feature='spar', side=None, index=j)
+                pts1 = sec1.get_selection_points(feature='spar', side=None, index=j)
+                findAt_points=mid_pts(pts0, pts1)
+                faces = self.get_faces(myPrt, findAt_points, getClosest=True, searchTolerance=1E-2)
+                myPrt.Surface(side1Faces=faces, name='face_%s_spar_%d' % (tag, j))
+
+            # Stringer faces (web + flange per side, combined into one set)
+            for j in range(sec0.n_stringers):
+                for side in ['upper', 'lower']:
+                    pts0 = sec0.get_selection_points(feature='stringer', side=side, index=j)
+                    pts1 = sec1.get_selection_points(feature='stringer', side=side, index=j)
+                    findAt_points=mid_pts(pts0, pts1)
+                    faces = self.get_faces(myPrt, findAt_points, getClosest=True, searchTolerance=1E-2)
+                    myPrt.Surface(side1Faces=faces, name='face_%s_stringer_%d_%s' % (tag, j, side))
+
+    def create_set(self):
+        '''
+        Create sets for all segments of the lofting_part, including:
+        - cover faces (upper/lower)
+        - spar faces (each spar)
+        - stringer web, flange faces (each stringer, upper/lower)
+        - spar edges (upper/lower edge of each spar)
+        - stringer edges (root/corner/tip edge of each stringer)
+        '''
+        n_sections = len(self.sections)
+
+        # ============================================================
+        # faces and edges for each wingbox segment
+        # ============================================================
+        myPrt = self.model.parts[self.name_part]
+        myPrt.Set(faces=myPrt.faces, name='all') 
+
+        for i_section in range(n_sections - 1):
+            sec0 = self.sections[i_section]
+            sec1 = self.sections[i_section + 1]
+            tag = 'wingbox%d' % i_section
+
+            # Cover faces (one face per cover segment between spars/stringers)
+            for side in ['upper', 'lower']:
+                pts0 = sec0.get_selection_points(feature='cover', side=side, index=0)
+                pts1 = sec1.get_selection_points(feature='cover', side=side, index=0)
+                findAt_points=mid_pts(pts0, pts1)
+
                 self.create_geometry_set(
                     name_set='face_%s_cover_%s' % (tag, side),
                     findAt_points=findAt_points,
@@ -266,34 +296,139 @@ class LoftingPart(Part):
                             findAt_points=[mid_pt(pt0, pt1)],
                             geometry='edge')
 
+        # ============================================================
+        # side edges (in xy-plane) for each wingbox section
+        # ============================================================
+        for i_section, sec in enumerate(self.sections):
+            tag = 'sec%d' % i_section
+            
+            # Spar side edges (for seeding)
+            for j in range(sec.n_spars):
+                for side in ['upper', 'lower']:
+                    pt0 = sec.spars[j].get_selection_point(feature='spar', side=None)
+                    self.create_geometry_set(
+                        name_set='edge_%s_spar_%d' % (tag, j),
+                        findAt_points=pt0,
+                        geometry='edge')
+            
+            # Stringer side edges (for seeding)
+            for j in range(sec.n_stringers):
+                for side in ['upper', 'lower']:
+                    for feat in ['web', 'flange']:
+                        pt0 = sec.stringers[j].get_selection_point(feature=feat, side=side)
+                        self.create_geometry_set(
+                            name_set='edge_%s_stringer_%d_%s_%s' % (tag, j, side, feat),
+                            findAt_points=pt0,
+                            geometry='edge')
+
     def set_seeding(self):
-        '''
-        Set seeding via Abaqus Module: Mesh
         
-        - Seed Edges
-        - Seed Part
-        '''
+        myPrt = self.model.parts[self.name_part]
+        myPrt.seedPart(size=self.pMesh['global_seedPart_size'], 
+                        deviationFactor=0.1, minSizeFactor=0.1)
+        
+        # ============================================================
+        # side edges (in xy-plane) for each wingbox section
+        # ============================================================
+        for i_section, sec in enumerate(self.sections):
+            tag = 'sec%d' % i_section
+            
+            # Spar side edges (for seeding)
+            for j in range(sec.n_spars):
+                for side in ['upper', 'lower']:
+                    name_set = 'edge_%s_spar_%d' % (tag, j)
+                    myPrt.seedEdgeByNumber(edges=myPrt.sets[name_set].edges,
+                                    number=self.pMesh['spar_seedEdge_number'], constraint=FIXED)
+                    
+            # Stringer side edges (for seeding)
+            for j in range(sec.n_stringers):
+                for side in ['upper', 'lower']:
+                    for feat in ['web', 'flange']:
+                        name_set = 'edge_%s_stringer_%d_%s_%s' % (tag, j, side, feat)
+                        myPrt.seedEdgeByNumber(edges=myPrt.sets[name_set].edges,
+                                    number=self.pMesh['stringer_seedEdge_number'], constraint=FIXED)
 
     def create_mesh(self):
-        '''
-        Set mesh control and create mesh via Abaqus Module: Mesh
-        
-        - Assign Mesh Control
-        - Assign Stack Direction
-        - Mesh Region
-        - Mesh Part
-        '''
-    
+
+        myPrt = self.model.parts[self.name_part]
+        myPrt.setMeshControls(regions=myPrt.cells, elemShape=QUAD, technique=STRUCTURED)
+        myPrt.generateMesh()
+
     def set_element_type(self):
         '''
-        Set element type via Abaqus Module: Mesh
-        
-        - Assign Element Type
+        Set element type as Shell elements (S4R) for all faces.
         '''
-    
+        myPrt = self.model.parts[self.name_part]
+        elemType1 = mesh.ElemType(elemCode=S4R, elemLibrary=STANDARD, 
+            secondOrderAccuracy=OFF, hourglassControl=DEFAULT)
+        elemType2 = mesh.ElemType(elemCode=S3, elemLibrary=STANDARD)
+        myPrt.setElementType(regions=myPrt.sets['all'], elemTypes=(elemType1, elemType2))
+
     def set_section_assignment(self):
         '''
         Set section assignment via Abaqus Module: Property
-        
-        - Assign Section
         '''
+        myPrt = self.model.parts[self.name_part]
+        n_sections = len(self.sections)
+        
+        material_name=str(self.pMesh['material_name'])
+        
+        for i_section in range(n_sections - 1):
+            sec0 = self.sections[i_section]
+            tag = 'wingbox%d' % i_section
+
+            # Cover faces
+            params = self.pMesh['cover']
+            for side in ['upper', 'lower']:
+                
+                primaryAxisVector = get_primaryAxisVector_spanwise(
+                    self.sections, i_section, feature='cover', side=side)
+                
+                name_set = 'face_%s_cover_%s' % (tag, side)
+                create_shell_CompositeLayup_of_set(
+                    myPrt=myPrt, name_set=name_set,
+                    ply_thickness=self.pMesh['ply_thickness'],
+                    ply_angles=params['layup_orientAngles'],
+                    name_surface=name_set,
+                    primaryAxisVector=primaryAxisVector,
+                    symmetric=params['layup_symmetric'],
+                    numIntPoints=self.pMesh['ply_numIntPts'],
+                    material_name=material_name)
+
+            # Spar faces
+            params = self.pMesh['spar']
+            for j in range(sec0.n_spars):
+
+                primaryAxisVector = get_primaryAxisVector_spanwise(
+                    self.sections, i_section, feature='spar', index=j)
+                
+                name_set = 'face_%s_spar_%d' % (tag, j)
+                create_shell_CompositeLayup_of_set(
+                    myPrt=myPrt, name_set=name_set,
+                    ply_thickness=self.pMesh['ply_thickness'],
+                    ply_angles=params[j]['layup_orientAngles'],
+                    name_surface=name_set,
+                    primaryAxisVector=primaryAxisVector,
+                    symmetric=params[j]['layup_symmetric'],
+                    numIntPoints=self.pMesh['ply_numIntPts'],
+                    material_name=material_name)
+
+            # Stringer faces (web + flange per side, combined into one set)
+            params = self.pMesh['stringer']
+            for j in range(sec0.n_stringers):
+                for side in ['upper', 'lower']:
+
+                    primaryAxisVector = get_primaryAxisVector_spanwise(
+                        self.sections, i_section, feature='stringer', side=side, index=j)
+                    
+                    name_set='face_%s_stringer_%d_%s' % (tag, j, side)
+                    create_shell_CompositeLayup_of_set(
+                        myPrt=myPrt, name_set=name_set,
+                        ply_thickness=self.pMesh['ply_thickness'],
+                        ply_angles=params['layup_orientAngles'],
+                        name_surface=name_set,
+                        primaryAxisVector=primaryAxisVector,
+                        symmetric=params['layup_symmetric'],
+                        numIntPoints=self.pMesh['ply_numIntPts'],
+                        material_name=material_name)
+
