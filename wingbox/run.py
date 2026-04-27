@@ -1,6 +1,8 @@
 
 import os
+import platform
 import time
+import json
 
 from AbaqusTools.functions import clean_pyc_files, clean_temporary_files
 
@@ -15,20 +17,22 @@ if __name__ == '__main__':
     
     clean_pyc_files()
 
-    print('>>> =============================================')
-    t1 = time.time()
-    
-    name_job = 'Job_WB'
-    
-    if FLAG_UVARM:
+    fname = 'default-parameters.json'
+    with open(fname, 'r') as f:
+        parameters = json.load(f)
+
+    if platform.system() == 'Windows':
+        os.system('abaqus cae script=wingbox_model.py')
+    else:
         os.system('abaqus cae noGUI=wingbox_model.py')
-        clean_temporary_files()
+    clean_temporary_files()
+    
+    if parameters['pMesh']['failure_model'] == 'LaRC05':
+        print('>>> Running job with LaRC05 failure model...')
+        name_job = str(parameters['name_job'])
         os.system('abaqus interactive job=%s user=uvarm.f90 cpus=%d'%(name_job, N_CPU))
         clean_temporary_files()
-    else:
-        os.system('abaqus cae script=wingbox_model.py')
-        clean_temporary_files()
-    
+
     t2 = time.time()
     
     print('>>> =============================================')

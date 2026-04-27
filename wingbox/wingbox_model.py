@@ -216,7 +216,7 @@ if __name__ == '__main__':
 
     #* Build model
 
-    name_job = 'Job_WB'
+    name_job = str(parameters['name_job'])
 
     model = WingboxModel(name_job, pGeo, pMesh, pRun)
     model.build()
@@ -228,6 +228,7 @@ if __name__ == '__main__':
         model.write_IM785517_property_table_inp(
             method=pMesh['user_subroutine'], fname_input=model.name_job+'.inp')
     
-    if not parameters['not_run_job']:
-        model.submit_job(name_job)
+    else:
+        if not parameters['not_run_job']:
+            model.submit_job(name_job)
     

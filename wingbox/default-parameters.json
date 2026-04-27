@@ -171,8 +171,9 @@
         "pressure_upper_cover": 0.03,
         "pressure_lower_cover": 0.02,
 
-        "user_subroutine": "UVARM",
-        "failure_model": "LaRC05"
+        "failure_model": "LaRC05",
+        "user_subroutine": "UVARM"
+        
     },
 
     "pRun": {
@@ -187,6 +188,7 @@
         "numThreadsPerMpiProcess": 1
     },
 
-    "not_run_job": true
+    "name_job": "Job_WB",
+    "not_run_job": false
 
 }
