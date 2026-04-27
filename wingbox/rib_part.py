@@ -32,6 +32,8 @@ class RibPart(Part):
         section_params['airfoil'] = os.path.join(path, section_params['airfoil'])
         self.section = WingSectionGeometry()
         self.section.set_parameters(section_params)
+        
+        self.name_layups = []
 
     def create_sketch(self):
         '''
@@ -126,7 +128,7 @@ class RibPart(Part):
             float(0.5 * (section.y3d_upper_cover[idx] + section.y3d_lower_cover[idx])),
             float(section.zLE))
         faces = self.get_faces(myPrt, [rib_face_pt], getClosest=True, searchTolerance=1E-2)
-        myPrt.Surface(side1Faces=faces, name='face_rib_%d' % (self.index_rib))
+        myPrt.Surface(side1Faces=faces, name='face_rib')
 
     def create_set(self):
         '''
@@ -149,30 +151,30 @@ class RibPart(Part):
             float(0.5 * (section.y3d_upper_cover[idx] + section.y3d_lower_cover[idx])),
             float(section.zLE))
         self.create_geometry_set(
-            name_set='face_rib_%d' % (self.index_rib),
+            name_set='face_rib',
             findAt_points=[rib_face_pt],
             geometry='face',
             getClosest=True, searchTolerance=1E-2)
 
         # Cover boundary edges (upper and lower splines)
         self.create_geometry_set(
-            name_set='edge_rib_%d_cover_upper' % (self.index_rib),
+            name_set='edge_rib_cover_upper',
             findAt_points=[(float(section.x3d_upper_cover[idx]),
                             float(section.y3d_upper_cover[idx]),
                             float(section.zLE))],
             geometry='edge')
         self.create_geometry_set(
-            name_set='edge_rib_%d_cover_lower' % (self.index_rib),
+            name_set='edge_rib_cover_lower',
             findAt_points=[(float(section.x3d_lower_cover[idx]),
                             float(section.y3d_lower_cover[idx]),
                             float(section.zLE))],
             geometry='edge')
 
         # Front and rear spar boundary edges
-        for j, label in [(0, 'front'), (-1, 'rear')]:
+        for j in range(self.section.n_spars):
             pt = section.spars[j].get_selection_point(feature='spar')
             self.create_geometry_set(
-                name_set='edge_rib_%d_spar_%s' % (self.index_rib, label),
+                name_set='edge_rib_spar_%d' % (j),
                 findAt_points=[pt],
                 geometry='edge')
 
@@ -181,13 +183,13 @@ class RibPart(Part):
             for side in ['upper', 'lower', 'left', 'right']:
                 pt = cutout.get_selection_point(feature='edge', side=side)
                 self.create_geometry_set(
-                    name_set='edge_rib_%d_cutout_%d_%s' % (self.index_rib, k, side),
+                    name_set='edge_rib_cutout_%d_%s' % (k, side),
                     findAt_points=[pt],
                     geometry='edge')
             for side in ['upper-left', 'upper-right', 'lower-left', 'lower-right']:
                 pt = cutout.get_selection_point(feature='fillet-curve', side=side)
                 self.create_geometry_set(
-                    name_set='edge_rib_%d_cutout_%d_fillet_%s' % (self.index_rib, k, side.replace('-', '_')),
+                    name_set='edge_rib_cutout_%d_fillet_%s' % (k, side.replace('-', '_')),
                     findAt_points=[pt],
                     geometry='edge')
 
@@ -198,8 +200,8 @@ class RibPart(Part):
                         deviationFactor=0.1, minSizeFactor=0.1)
 
         # Spar side edges (for seeding)
-        for j, label in [(0, 'front'), (-1, 'rear')]:
-            name_set='edge_rib_%d_spar_%s' % (self.index_rib, label)
+        for j in range(self.section.n_spars):
+            name_set='edge_rib_spar_%d' % (j)
             myPrt.seedEdgeBySize(edges=myPrt.sets[name_set].edges,
                     size=self.pMesh['rib_seedEdge_size'],
                     deviationFactor=0.1, constraint=FINER)
@@ -207,16 +209,15 @@ class RibPart(Part):
         # Cutout edges (for seeding)
         for k, cutout in enumerate(self.section.cutouts):
             for side in ['upper', 'lower', 'left', 'right']:
-                name_set = 'edge_rib_%d_cutout_%d_%s' % (self.index_rib, k, side)
+                name_set = 'edge_rib_cutout_%d_%s' % (k, side)
                 myPrt.seedEdgeBySize(edges=myPrt.sets[name_set].edges,
                     size=self.pMesh['rib_seedEdge_size'],
                     deviationFactor=0.1, constraint=FINER)
             for side in ['upper-left', 'upper-right', 'lower-left', 'lower-right']:
-                name_set='edge_rib_%d_cutout_%d_fillet_%s' % (self.index_rib, k, side.replace('-', '_'))
+                name_set='edge_rib_cutout_%d_fillet_%s' % (k, side.replace('-', '_'))
                 myPrt.seedEdgeBySize(edges=myPrt.sets[name_set].edges,
                     size=self.pMesh['fillet_seedEdge_size'],
                     deviationFactor=0.1, constraint=FINER)
-
 
     def create_mesh(self):
         
@@ -245,7 +246,8 @@ class RibPart(Part):
         primaryAxisVector = get_primaryAxisVector_section(
             self.section, feature='rib')
         
-        name_set = 'face_rib_%d' % (self.index_rib)
+        name_set = 'face_rib'
+        self.name_layups.append(name_set)
         create_shell_CompositeLayup_of_set(
             myPrt=myPrt, name_set=name_set,
             ply_thickness=self.pMesh['ply_thickness'],

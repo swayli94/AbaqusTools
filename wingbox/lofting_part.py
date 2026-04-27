@@ -34,6 +34,8 @@ class LoftingPart(Part):
             wsg = WingSectionGeometry()
             wsg.set_parameters(section_params)
             self.sections.append(wsg)
+            
+        self.name_layups = []
 
     def create_sketch(self):
         '''
@@ -234,7 +236,8 @@ class LoftingPart(Part):
         n_sections = len(self.sections)
 
         # ============================================================
-        # faces and edges for each wingbox segment
+        # Faces and edges for each wingbox segment
+        # For seeding and section assignment
         # ============================================================
         myPrt = self.model.parts[self.name_part]
         myPrt.Set(faces=myPrt.faces, name='all') 
@@ -297,12 +300,21 @@ class LoftingPart(Part):
                             geometry='edge')
 
         # ============================================================
-        # side edges (in xy-plane) for each wingbox section
+        # Side edges (in xy-plane) for each wingbox section
+        # For seeding and tie constraints
         # ============================================================
         for i_section, sec in enumerate(self.sections):
             tag = 'sec%d' % i_section
             
-            # Spar side edges (for seeding)
+            # Cover side edges
+            for side in ['upper', 'lower']:
+                pts0 = sec.get_selection_points(feature='cover', side=side, index=0)
+                self.create_geometry_set(
+                    name_set='edge_%s_cover_%s' % (tag, side),
+                    findAt_points=pts0,
+                    geometry='edge')
+            
+            # Spar side edges
             for j in range(sec.n_spars):
                 for side in ['upper', 'lower']:
                     pt0 = sec.spars[j].get_selection_point(feature='spar', side=None)
@@ -311,7 +323,7 @@ class LoftingPart(Part):
                         findAt_points=pt0,
                         geometry='edge')
             
-            # Stringer side edges (for seeding)
+            # Stringer side edges
             for j in range(sec.n_stringers):
                 for side in ['upper', 'lower']:
                     for feat in ['web', 'flange']:
@@ -385,6 +397,7 @@ class LoftingPart(Part):
                     self.sections, i_section, feature='cover', side=side)
                 
                 name_set = 'face_%s_cover_%s' % (tag, side)
+                self.name_layups.append(name_set)
                 create_shell_CompositeLayup_of_set(
                     myPrt=myPrt, name_set=name_set,
                     ply_thickness=self.pMesh['ply_thickness'],
@@ -403,6 +416,7 @@ class LoftingPart(Part):
                     self.sections, i_section, feature='spar', index=j)
                 
                 name_set = 'face_%s_spar_%d' % (tag, j)
+                self.name_layups.append(name_set)
                 create_shell_CompositeLayup_of_set(
                     myPrt=myPrt, name_set=name_set,
                     ply_thickness=self.pMesh['ply_thickness'],
@@ -422,6 +436,7 @@ class LoftingPart(Part):
                         self.sections, i_section, feature='stringer', side=side, index=j)
                     
                     name_set='face_%s_stringer_%d_%s' % (tag, j, side)
+                    self.name_layups.append(name_set)
                     create_shell_CompositeLayup_of_set(
                         myPrt=myPrt, name_set=name_set,
                         ply_thickness=self.pMesh['ply_thickness'],
