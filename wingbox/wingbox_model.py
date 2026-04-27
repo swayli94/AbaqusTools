@@ -173,7 +173,7 @@ class WingboxModel(Model):
 
         for i, name_layup in enumerate(self.lofting.name_layups):
             self.model.FieldOutputRequest(name='Layup-Output-lofting-%d' % i, 
-                createStepName='Loading', variables=('S', 'E'),
+                createStepName='Loading', variables=('S', 'E', 'SDV'),
                 frequency=LAST_INCREMENT, 
                 layupNames=('lofting.%s' % name_layup, ), 
                 layupLocationMethod=SPECIFIED, outputAtPlyTop=False, outputAtPlyMid=True, 
@@ -182,7 +182,7 @@ class WingboxModel(Model):
         for i, rib in enumerate(self.ribs):
             for j, name_layup in enumerate(rib.name_layups):
                 self.model.FieldOutputRequest(name='Layup-Output-rib%d-%d' % (i, j), 
-                    createStepName='Loading', variables=('S', 'E'),
+                    createStepName='Loading', variables=('S', 'E', 'SDV'),
                     frequency=LAST_INCREMENT, 
                     layupNames=('%s.%s' % (rib.name_part, name_layup), ),
                     layupLocationMethod=SPECIFIED, outputAtPlyTop=False, outputAtPlyMid=True, 
@@ -222,6 +222,11 @@ if __name__ == '__main__':
     model.build()
     model.set_view()
     model.save_cae('WingBox.cae')
+    
+    if pMesh['failure_model'] == 'LaRC05':
+        model.write_job_inp()
+        model.write_IM785517_property_table_inp(
+            method=pMesh['user_subroutine'], fname_input=model.name_job+'.inp')
     
     if not parameters['not_run_job']:
         model.submit_job(name_job)

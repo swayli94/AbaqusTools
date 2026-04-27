@@ -6,6 +6,7 @@ from AbaqusTools.functions import clean_pyc_files, clean_temporary_files
 
 
 N_CPU = 4
+FLAG_UVARM = False
 
 
 if __name__ == '__main__':
@@ -19,13 +20,15 @@ if __name__ == '__main__':
     
     name_job = 'Job_WB'
     
-    # os.system('abaqus cae noGUI=wingbox_model.py')
-    os.system('abaqus cae script=wingbox_model.py')
-    clean_temporary_files()
+    if FLAG_UVARM:
+        os.system('abaqus cae noGUI=wingbox_model.py')
+        clean_temporary_files()
+        os.system('abaqus interactive job=%s user=uvarm.f90 cpus=%d'%(name_job, N_CPU))
+        clean_temporary_files()
+    else:
+        os.system('abaqus cae script=wingbox_model.py')
+        clean_temporary_files()
     
-    # os.system('abaqus interactive job=%s cpus=%d'%(name_job, N_CPU))
-    # clean_temporary_files()
-
     t2 = time.time()
     
     print('>>> =============================================')
