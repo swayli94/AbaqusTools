@@ -168,7 +168,7 @@ class SteelBeamModel(Model):
         self.length_x = self.beam_0.length_x
         self.length_y = self.beam_0.length_y
         self.length_z = self.beam_0.length_z
-        self.volume = self.length_x*self.length_y*self.length_z
+        self.volume_box = self.length_x*self.length_y*self.length_z
     
     def setup_assembly(self):
         

@@ -421,7 +421,7 @@ class LaminateModel(Model):
         self.length_x = self.plate.length_x
         self.length_y = self.plate.length_y
         self.length_z = self.plate.length_z
-        self.volume = self.length_x*self.length_y*self.length_z
+        self.volume_box = self.length_x*self.length_y*self.length_z
     
     def setup_assembly(self):
         

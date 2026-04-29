@@ -52,40 +52,6 @@ class TestModel_PBC_3D(LaminateModel):
         for i_rp, label_rp in enumerate(self.label_rp):
             self.create_reference_point(-10*(i_rp+1), 0, 0, label_rp)
             self.create_reference_point_set(label_rp, label_rp)        
-    
-    def create_pbc_constraints(self):
-        '''
-        Create node sets of nodes in paired faces.
-        '''
-        name_instance = 'plate'
-        
-        #* Pairs of faces that are periodic
-        #     master_face, slave_face,      forbidden_sets,     coords_sorting, name_mfn, name_sfn
-        pairs = self._create_pbc_face_pairs()
-
-        #* Create node sets on the master/slave faces
-        label_forbidden = []
-
-        for master_face, slave_face, forbidden_sets, coords_sorting, name_mfn, name_sfn in pairs:
-            
-            _,_, label_forbidden = PBC_3DOrthotropic.create_node_sets(
-                                myMdl=self.model, name_instance=name_instance, 
-                                name_master_face_set=master_face, 
-                                name_slave_face_set=slave_face,
-                                coords_sorting=coords_sorting,
-                                name_forbidden_sets=forbidden_sets, 
-                                label_forbidden_nodes=label_forbidden,
-                                name_mfn=name_mfn, name_sfn=name_sfn)
-        
-        #* Create constraint equations
-        PBC_3DOrthotropic.create_constraints_strain_vector(self.model,
-                name_eqn='PBC3D_%s'%(name_instance),
-                name_mfn_x_set='MFn-X', name_sfn_x_set='SFn-X',
-                name_mfn_y_set='MFn-Y', name_sfn_y_set='SFn-Y',
-                name_mfn_z_set='MFn-Z', name_sfn_z_set='SFn-Z',
-                length_x=self.length_x, length_y=self.length_y, length_z=self.length_z,
-                name_rp11=self.label_rp[0], name_rp22=self.label_rp[1], name_rp33=self.label_rp[2],
-                name_rp23=self.label_rp[3], name_rp13=self.label_rp[4], name_rp12=self.label_rp[5])
 
     def _create_pbc_face_pairs(self):
         '''
@@ -121,6 +87,39 @@ class TestModel_PBC_3D(LaminateModel):
                 ('face_y1', 'face_y0',  [], (2,0),  'MFn-Y', 'SFn-Y')]
             
         return pairs
+
+    def create_pbc_constraints(self):
+        '''
+        Create node sets of nodes in paired faces.
+        '''
+        name_instance = 'plate'
+        
+        #* Pairs of faces that are periodic
+        pairs = self._create_pbc_face_pairs()
+
+        #* Create node sets on the master/slave faces
+        label_forbidden = []
+
+        for master_face, slave_face, forbidden_sets, coords_sorting, name_mfn, name_sfn in pairs:
+            
+            _,_, label_forbidden = PBC_3DOrthotropic.create_node_sets(
+                                myMdl=self.model, name_instance=name_instance, 
+                                name_master_face_set=master_face, 
+                                name_slave_face_set=slave_face,
+                                coords_sorting=coords_sorting,
+                                name_forbidden_sets=forbidden_sets, 
+                                label_forbidden_nodes=label_forbidden,
+                                name_mfn=name_mfn, name_sfn=name_sfn)
+        
+        #* Create constraint equations
+        PBC_3DOrthotropic.create_constraints_strain_vector(self.model,
+                name_eqn='PBC3D_%s'%(name_instance),
+                name_mfn_x_set='MFn-X', name_sfn_x_set='SFn-X',
+                name_mfn_y_set='MFn-Y', name_sfn_y_set='SFn-Y',
+                name_mfn_z_set='MFn-Z', name_sfn_z_set='SFn-Z',
+                length_x=self.length_x, length_y=self.length_y, length_z=self.length_z,
+                name_rp11=self.label_rp[0], name_rp22=self.label_rp[1], name_rp33=self.label_rp[2],
+                name_rp23=self.label_rp[3], name_rp13=self.label_rp[4], name_rp12=self.label_rp[5])
 
     def create_bc_pinned(self):
         '''
@@ -212,7 +211,7 @@ class TestModel_PBC_3D(LaminateModel):
         a = self.rootAssembly
 
         for i_rp, label_rp in enumerate(self.label_rp):
-            
+        
             if i_rp == self.strain_component:
                 u1 = self.strain_scale
             else:
@@ -225,6 +224,7 @@ class TestModel_PBC_3D(LaminateModel):
 
 
 if __name__ == '__main__':
+
 
     with open('parameters.json', 'r') as f:
         parameters = json.load(f)
@@ -247,7 +247,6 @@ if __name__ == '__main__':
     model = TestModel_PBC_3D(name_job, pGeo, pMesh, pRun,
                         strain_component=index_strain_vector,
                         strain_scale=parameters['strain_scale'])
-
     model.build()
     model.set_view()
     model.save_cae('OHP_%d_%d.cae'%(index_run, index_strain_vector))
@@ -256,10 +255,9 @@ if __name__ == '__main__':
         
         model.write_job_inp(model.name_job)
         model.submit_job(model.name_job, only_data_check=False)
-        
+
         #* Post process
         cmd_arguments = str(sys.argv)
-        
         if '-noGUI' in cmd_arguments:
         
             odb = OdbOperation(model.name_job)
@@ -286,7 +284,7 @@ if __name__ == '__main__':
                 '''
                     
                 for i_rp, label_rp in enumerate(model.label_rp):
-                    f.write('%s_RF  %20.6E \n'%(label_rp, rf_RPs[i_rp]/model.volume))
+                    f.write('%s_RF  %20.6E \n'%(label_rp, rf_RPs[i_rp]/model.volume_box))
                     
                 for i_rp, label_rp in enumerate(model.label_rp):
                     f.write('%s_U   %20.6E \n'%(label_rp, u_RPs[i_rp]))

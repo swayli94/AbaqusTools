@@ -453,15 +453,15 @@ class LBC_3DOrthotropic(NodeOperation):
             - RP_13: float
             - RP_12: float
         '''
-        volume = model_length_x*model_length_y*model_length_z
-        
+        volume_box = model_length_x*model_length_y*model_length_z
+            
         displacements = {
-            'RP_11': strain_vector[0]*volume,
-            'RP_22': strain_vector[1]*volume,
-            'RP_33': strain_vector[2]*volume,
-            'RP_23': strain_vector[3]*volume,
-            'RP_13': strain_vector[4]*volume,
-            'RP_12': strain_vector[5]*volume,
+            'RP_11': strain_vector[0]*volume_box,
+            'RP_22': strain_vector[1]*volume_box,
+            'RP_33': strain_vector[2]*volume_box,
+            'RP_23': strain_vector[3]*volume_box,
+            'RP_13': strain_vector[4]*volume_box,
+            'RP_12': strain_vector[5]*volume_box,
         }
 
         return displacements

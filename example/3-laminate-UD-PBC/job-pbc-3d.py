@@ -224,7 +224,7 @@ if __name__ == '__main__':
                 '''
                     
                 for i_rp, label_rp in enumerate(model.label_rp):
-                    f.write('%s_RF  %20.6E \n'%(label_rp, rf_RPs[i_rp]/model.volume))
+                    f.write('%s_RF  %20.6E \n'%(label_rp, rf_RPs[i_rp]/model.volume_box))
                     
                 for i_rp, label_rp in enumerate(model.label_rp):
                     f.write('%s_U   %20.6E \n'%(label_rp, u_RPs[i_rp]))
