@@ -209,6 +209,10 @@ def extract_mid_plane_strain(name_job, fname_save='specimen-mid-plane-strain-S4R
         step='Loading', frame=-1, variable='SE', component=None,
         name_instance=NAME_INSTANCE, name_set=NAME_SET)
     
+    _, value_SF = odb.probe_element_set_values(
+        step='Loading', frame=-1, variable='SF', component=None,
+        name_instance=NAME_INSTANCE, name_set=NAME_SET)
+    
     n_elements = len(element_labels)
     for i in range(n_elements):
         if _element_labels[i] != element_labels[i]:
@@ -216,14 +220,16 @@ def extract_mid_plane_strain(name_job, fname_save='specimen-mid-plane-strain-S4R
 
     with open(fname_save, 'w') as f:
         
-        f.write('Variables= X Y Z index epsilon11 epsilon22 epsilon12 kappa11 kappa22 kappa12\n')
+        f.write('Variables= X Y Z index N11 N22 N12 epsilon11 epsilon22 epsilon12\n')
         f.write('zone T=" %s %s "\n'%(NAME_INSTANCE, NAME_SET))
 
         for i_elem in range(n_elements):
             for j in range(3):
                 f.write(' %14.6E'%(coordinates[i_elem][j]))
             f.write(' %d'%(indices_fieldOutput[i_elem]))
-            for j in range(6):
+            for j in range(3):
+                f.write(' %14.6E'%(value_SF[i_elem, j]))
+            for j in range(3):
                 f.write(' %14.6E'%(value_SE[i_elem, j]))
             f.write('\n')
 

@@ -369,6 +369,8 @@ class LaminateModel(Model):
             frequency=LAST_INCREMENT)
         
         # SF: section forces and moments (N11, N22, N12, M11, M22, M12)
+        # N**: in-plane forces per unit length (N/mm)
+        # M**: bending moments per unit length (N*mm/mm)
         # SE: section strains of mid-plane (epsilon11, epsilon22, epsilon12, kappa11, kappa22, kappa12)
         
         variables = ('S', 'TSHR', 'E')
