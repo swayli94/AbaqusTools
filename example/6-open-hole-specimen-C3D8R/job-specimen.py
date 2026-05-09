@@ -140,6 +140,33 @@ class TestModel_InPlaneLoad(LaminateModel):
             amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
 
 
+def extract_field(name_job, fname_save='specimen-field-C3D8R.dat'):
+    
+    NAME_INSTANCE = 'PLATE'
+    NAME_SET = 'PARTITION_CIRCLE'
+    
+    odb = OdbOperation(name_job)
+    element_labels, indices_fieldOutput = odb.get_element_labels_and_indices(
+        name_instance=NAME_INSTANCE, name_set=NAME_SET)
+    coordinates = odb.probe_element_center_coordinate(
+        name_instance=NAME_INSTANCE, element_label=element_labels)
+    values_S = odb.probe_element_values(variable='S', index_fieldOutput=indices_fieldOutput)
+    n_element = len(indices_fieldOutput)
+
+    with open(fname_save, 'w') as f:
+        
+        f.write('Variables= X Y Z index S11 S22 S33 S12 S13 S23\n')
+        f.write('zone T=" %s %s ", I= %d\n'%(NAME_INSTANCE, NAME_SET, n_element))
+
+        for i in range(n_element):
+            for j in range(3):
+                f.write(' %14.6E'%(coordinates[i][j]))
+            f.write(' %d'%(indices_fieldOutput[i]))
+            for j in range(6):
+                f.write(' %14.6E'%(values_S[i][j]))
+            f.write('\n')
+    
+
 if __name__ == '__main__':
 
 
@@ -210,4 +237,6 @@ if __name__ == '__main__':
                 f.write('Volume_box  %20.6E \n'%(model.volume_box))
                 f.write('Volume_hole %20.6E \n'%(model.volume_hole))
                 f.write('Volume      %20.6E \n'%(model.volume))
-                
+        
+        extract_field(name_job=name_job, fname_save=name_job+'-field.dat')
+        

@@ -825,11 +825,13 @@ class OdbOperation(object):
         coordinates: ndarray [n_dim] or [n_node, n_dim]
             the nodal coordinates in the global Cartesian coordinate system
         '''
+        is_integer = isinstance(element_label, int)
+        
         #* Get connectivity of element(s)
         connectivity, instanceNames, element_label = self.get_element_connectivity(name_instance, element_label, index_fieldOutput)
         
         n_element = len(element_label)
-        if n_element == 1:
+        if is_integer:
             connectivity = [connectivity]
             instanceNames = [instanceNames]
         
@@ -842,9 +844,9 @@ class OdbOperation(object):
                 name = instanceNames[i_elem][i_node]
                 if not name == name_instance:
                     print('>>> Error [OdbOperation.probe_element_center_coordinate]')
-                    print('    Element instance: '+name_instance)
+                    print('    Element instance: ', name_instance)
                     print('    Element label:    %d'%(element_label[i_elem]))
-                    print('    Node instance:    '+name)
+                    print('    Node instance:    ', name)
                     print('    Node label:       %d'%(connectivity[i_elem][i_node]))
                     raise Exception()
 
@@ -854,7 +856,7 @@ class OdbOperation(object):
             coordinates.append(XYZs)
 
         coordinates = np.array(coordinates)
-        if n_element == 1:
+        if is_integer:
             coordinates = coordinates[0,:]
         
         return coordinates
@@ -980,7 +982,8 @@ class OdbOperation(object):
         return values
     
     @staticmethod
-    def _get_XYDataFromShellThickness_from_element_label(odb, variable='E', component='E11', name_instance='PLATE', element_label=1):
+    def _get_XYDataFromShellThickness_from_element_label(odb,
+                variable='E', component='E11',name_instance='PLATE', element_label=1):
         '''
         Get data from `Tools -> XY Data -> Create XY Data -> Thickness -> Variables & Elements`.
         

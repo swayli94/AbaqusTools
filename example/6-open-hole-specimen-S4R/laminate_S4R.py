@@ -496,7 +496,7 @@ class LaminateModel(Model):
             createStepName='Loading', variables=('S', 'E', 'U', 'RF'),
             frequency=LAST_INCREMENT)
         
-        variables = ('S', 'E')
+        variables = ('S', 'TSHR', 'E')
         if 'failure_model' in self.pMesh:
             if self.pMesh['failure_model'] == 'Hashin':
                 variables_hashin = ('DMICRT', 'HSNFTCRT', 'HSNFCCRT', 'HSNMTCRT', 'HSNMCCRT')

@@ -213,6 +213,12 @@ class ImplicitModellingPlate(Part):
         self.create_geometry_set('edge_partition_y0', (0.5*self.length_x, y0, 0.0), geometry='edge')
         self.create_geometry_set('edge_partition_y1', (0.5*self.length_x, y1, 0.0), geometry='edge')
         
+        myPrt.SetByBoolean(
+            name='remainder',
+            sets=(myPrt.sets['all'], myPrt.sets['partition_square']),
+            operation=DIFFERENCE,
+        )
+        
     #* Meshing
     
     def set_seeding(self):
@@ -242,7 +248,7 @@ class ImplicitModellingPlate(Part):
         myPrt = self.model.parts[self.name_part]
         
         self.set_CompositeLayup_of_set(myPrt, 
-                name_set=       'all', 
+                name_set=       'remainder', 
                 total_thickness=self.length_z, 
                 ply_angle=      self.pMesh['plate_CompositePly_orientationValue'],
                 eNum_thickness= self.pMesh['num_element_thickness'],
@@ -362,16 +368,23 @@ class LaminateModel(Model):
             createStepName='Loading', variables=('S', 'E', 'U', 'RF'),
             frequency=LAST_INCREMENT)
         
-        variables = ('S', 'E')
+        variables = ('S', 'TSHR', 'E')
         if 'failure_model' in self.pMesh:
             if self.pMesh['failure_model'] == 'Hashin':
                 variables_hashin = ('DMICRT', 'HSNFTCRT', 'HSNFCCRT', 'HSNMTCRT', 'HSNMCCRT')
                 variables += variables_hashin
 
-        self.model.FieldOutputRequest(name='Layup-Output', 
+        self.model.FieldOutputRequest(name='Layup-Output-1', 
             createStepName='Loading', variables=variables,
             frequency=LAST_INCREMENT, 
-            layupNames=('plate.all', ), 
+            layupNames=('plate.partition_square', ),
+            layupLocationMethod=SPECIFIED, outputAtPlyTop=False, outputAtPlyMid=True, 
+            outputAtPlyBottom=False, rebar=EXCLUDE)
+        
+        self.model.FieldOutputRequest(name='Layup-Output-remainder', 
+            createStepName='Loading', variables=variables,
+            frequency=LAST_INCREMENT, 
+            layupNames=('plate.remainder', ),
             layupLocationMethod=SPECIFIED, outputAtPlyTop=False, outputAtPlyMid=True, 
             outputAtPlyBottom=False, rebar=EXCLUDE)
         

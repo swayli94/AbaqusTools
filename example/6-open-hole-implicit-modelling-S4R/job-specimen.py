@@ -140,6 +140,60 @@ class TestModel_InPlaneLoad(LaminateModel):
             amplitude=UNSET, fixed=OFF, distributionType=UNIFORM, fieldName='', localCsys=None)
 
 
+def extract_field(name_job, fname_save='specimen-field-S4R.dat'):
+    
+    NAME_INSTANCE = 'PLATE'
+    NAME_SET = 'PARTITION_SQUARE'
+    
+    odb = OdbOperation(name_job)
+    element_labels, indices_fieldOutput = odb.get_element_labels_and_indices(
+        name_instance=NAME_INSTANCE, name_set=NAME_SET)
+    
+    coordinates = odb.probe_element_center_coordinate(
+        name_instance=NAME_INSTANCE, element_label=element_labels)
+
+    with open(fname_save, 'w') as f:
+        
+        f.write('Variables= X Y Z index S11 S22 S12 TSHR13 TSHR23 E11 E22 E12\n')
+        f.write('zone T=" %s %s "\n'%(NAME_INSTANCE, NAME_SET))
+
+        for i_elem, element_label in enumerate(element_labels):
+            
+            values_S11 = odb.probe_shell_element_thickness_values(variable='S', component='S11',
+                                    name_instance=NAME_INSTANCE, element_label=element_label)
+            values_S22 = odb.probe_shell_element_thickness_values(variable='S', component='S22',
+                                    name_instance=NAME_INSTANCE, element_label=element_label)
+            values_S12 = odb.probe_shell_element_thickness_values(variable='S', component='S12',
+                                    name_instance=NAME_INSTANCE, element_label=element_label)
+            values_TSHR13 = odb.probe_shell_element_thickness_values(variable='TSHR13', component=None,
+                                    name_instance=NAME_INSTANCE, element_label=element_label)
+            values_TSHR23 = odb.probe_shell_element_thickness_values(variable='TSHR23', component=None,
+                                    name_instance=NAME_INSTANCE, element_label=element_label)
+            values_E11 = odb.probe_shell_element_thickness_values(variable='E', component='E11',
+                                    name_instance=NAME_INSTANCE, element_label=element_label)
+            values_E22 = odb.probe_shell_element_thickness_values(variable='E', component='E22',
+                                    name_instance=NAME_INSTANCE, element_label=element_label)
+            values_E12 = odb.probe_shell_element_thickness_values(variable='E', component='E12',
+                                    name_instance=NAME_INSTANCE, element_label=element_label)
+
+            n_thickness = values_S11.shape[0]
+            
+            for i_thick in range(1, n_thickness-1):
+                f.write(' %14.6E'%(coordinates[i_elem][0]))
+                f.write(' %14.6E'%(coordinates[i_elem][1]))
+                f.write(' %14.6E'%(coordinates[i_elem][2]+values_S11[i_thick,0]))
+                f.write(' %d'%(indices_fieldOutput[i_elem]))
+                f.write(' %14.6E'%(values_S11[i_thick,1]))
+                f.write(' %14.6E'%(values_S22[i_thick,1]))
+                f.write(' %14.6E'%(values_S12[i_thick,1]))
+                f.write(' %14.6E'%(values_TSHR13[i_thick-1,1]))
+                f.write(' %14.6E'%(values_TSHR23[i_thick-1,1]))
+                f.write(' %14.6E'%(values_E11[i_thick,1]))
+                f.write(' %14.6E'%(values_E22[i_thick,1]))
+                f.write(' %14.6E'%(values_E12[i_thick,1]))
+                f.write('\n')
+
+
 if __name__ == '__main__':
 
 
@@ -210,4 +264,6 @@ if __name__ == '__main__':
                 f.write('Volume_box  %20.6E \n'%(model.volume_box))
                 f.write('Volume_hole %20.6E \n'%(model.volume_hole))
                 f.write('Volume      %20.6E \n'%(model.volume))
-                
+            
+            extract_field(name_job=name_job, fname_save=name_job+'-field.dat')
+            
