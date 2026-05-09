@@ -306,5 +306,5 @@ if __name__ == '__main__':
                 f.write('Volume      %20.6E \n'%(model.volume))
             
             extract_field(name_job=name_job, fname_save=name_job+'-field.dat')
-            extract_mid_plane_strain(name_job=name_job, fname_save=name_job+'-mid-plane-strain.dat')
+            extract_mid_plane_strain(name_job=name_job, fname_save=name_job+'-mid-plane.dat')
             

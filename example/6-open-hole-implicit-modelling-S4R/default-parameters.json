@@ -49,5 +49,6 @@
     "index_strain_vector": 0,
     "strain_scale": 1E-3,
     "not_run_job": false,
-    "target_volume_fraction": 0.4
+    "target_volume_fraction": 0.4,
+    "characteristic_distance": 1.0
 }
