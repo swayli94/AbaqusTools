@@ -193,6 +193,40 @@ def extract_field(name_job, fname_save='specimen-field-S4R.dat'):
                 f.write(' %14.6E'%(values_E12[i_thick,1]))
                 f.write('\n')
 
+def extract_mid_plane_strain(name_job, fname_save='specimen-mid-plane-strain-S4R.dat'):
+    
+    NAME_INSTANCE = 'PLATE'
+    NAME_SET = 'PARTITION_SQUARE'
+    
+    odb = OdbOperation(name_job)
+    element_labels, indices_fieldOutput = odb.get_element_labels_and_indices(
+        name_instance=NAME_INSTANCE, name_set=NAME_SET)
+    
+    coordinates = odb.probe_element_center_coordinate(
+        name_instance=NAME_INSTANCE, element_label=element_labels)
+
+    _element_labels, value_SE = odb.probe_element_set_values(
+        step='Loading', frame=-1, variable='SE', component=None,
+        name_instance=NAME_INSTANCE, name_set=NAME_SET)
+    
+    n_elements = len(element_labels)
+    for i in range(n_elements):
+        if _element_labels[i] != element_labels[i]:
+            raise ValueError('Element labels do not match: %d != %d'%(_element_labels[i], element_labels[i]))
+
+    with open(fname_save, 'w') as f:
+        
+        f.write('Variables= X Y Z index epsilon11 epsilon22 epsilon12 kappa11 kappa22 kappa12\n')
+        f.write('zone T=" %s %s "\n'%(NAME_INSTANCE, NAME_SET))
+
+        for i_elem in range(n_elements):
+            for j in range(3):
+                f.write(' %14.6E'%(coordinates[i_elem][j]))
+            f.write(' %d'%(indices_fieldOutput[i_elem]))
+            for j in range(6):
+                f.write(' %14.6E'%(value_SE[i_elem, j]))
+            f.write('\n')
+
 
 if __name__ == '__main__':
 
@@ -266,4 +300,5 @@ if __name__ == '__main__':
                 f.write('Volume      %20.6E \n'%(model.volume))
             
             extract_field(name_job=name_job, fname_save=name_job+'-field.dat')
+            extract_mid_plane_strain(name_job=name_job, fname_save=name_job+'-mid-plane-strain.dat')
             

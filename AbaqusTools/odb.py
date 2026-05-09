@@ -750,6 +750,27 @@ class OdbOperation(object):
             
         return values
     
+    def probe_element_set_values(self, step='Loading', frame=-1, variable='S', component=None,
+                                 name_instance='ASSEMBLY', name_set=None):
+        '''
+        Probe values of a set of elements. The value is stored in integration point(s).
+        '''
+        _frame = session.odbs[self.name_job].steps[step].frames[frame]
+        _field = _frame.fieldOutputs[variable]
+        if isinstance(component, str):
+            _field = _field.getScalarField(componentLabel=component)
+        
+        elem_set = self.odb.rootAssembly.instances[name_instance].elementSets[name_set]
+        data = _field.getSubset(region=elem_set, position=INTEGRATION_POINT)
+        
+        element_labels = []
+        values = []
+        for v in data.values:
+            element_labels.append(v.elementLabel)
+            values.append(v.data)
+            
+        return element_labels, np.array(values)
+    
     #* Probe coordinate of node/element
     def probe_node_coordinate(self, name_instance='ASSEMBLY', node_label=1, index_fieldOutput=None):
         '''

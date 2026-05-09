@@ -365,8 +365,11 @@ class LaminateModel(Model):
     def setup_outputs(self):
 
         self.model.FieldOutputRequest(name='F-Output-1', 
-            createStepName='Loading', variables=('S', 'E', 'U', 'RF'),
+            createStepName='Loading', variables=('S', 'E', 'SE', 'SF', 'U', 'RF'),
             frequency=LAST_INCREMENT)
+        
+        # SF: section forces and moments (N11, N22, N12, M11, M22, M12)
+        # SE: section strains of mid-plane (epsilon11, epsilon22, epsilon12, kappa11, kappa22, kappa12)
         
         variables = ('S', 'TSHR', 'E')
         if 'failure_model' in self.pMesh:
