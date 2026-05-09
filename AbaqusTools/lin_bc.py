@@ -57,86 +57,10 @@ class LBC_3DOrthotropic(NodeOperation):
 
     @staticmethod
     def create_node_sets(myMdl, name_instance,
-                        name_master_face_set, name_slave_face_set, coords_sorting,
-                        name_forbidden_sets=[], label_forbidden_nodes=[],
-                        name_mfn=None, name_sfn=None):
-        '''
-        Create node sets on the master/slave faces for the linear boundary condition.
-        
-        Parameters
-        ---------------
-        myMdl: Abaqus Model object
-            model object
-            
-        name_instance: str
-            name of the instance that the set belongs to.
-            
-        name_master_face_set: str
-            name of the master face set
-            
-        name_slave_face_set: str
-            name of the slave face set
-            
-        coords_sorting: tuple of int
-            a tuple contains coordinate indices for sorting nodes, e.g., (0,1), (1,2), (2,0).
-            
-        name_forbidden_sets: list of strings
-            name of sets that consists of forbidden nodes.
-            It can be a node set, or a geometry set of vertices, edges, or faces.
-            
-        label_forbidden_nodes: list of integers
-            labels of forbidden nodes.
-            An overlap between `name_forbidden_sets` and `label_forbidden_nodes` is allowed.
-            
-        name_mfn, name_sfn: str
-            name of the node sets on the master/slave faces.
-            If None, use default name.
-            
-        Return
-        ----------------
-        name_mfn, name_sfn: str
-            name of the node sets on the master/slave faces.
-        '''
-        #* Sort nodes by coordinates to find node pairs automatically
-        master_face_nodes = LBC_3DOrthotropic.get_nodes_from_face(myMdl, name_master_face_set, coords_sorting, name_instance)
-        slave_face_nodes  = LBC_3DOrthotropic.get_nodes_from_face(myMdl, name_slave_face_set,  coords_sorting, name_instance)
-        
-        num_node_master = len(master_face_nodes)
-        num_node_slave  = len(slave_face_nodes)
-                
-        #* Exclude forbidden nodes
-        
-        labels_master, label_forbidden_nodes = \
-            LBC_3DOrthotropic.exclude_forbidden_nodes(myMdl, nodes=master_face_nodes, 
-                                name_forbidden_sets=name_forbidden_sets, 
-                                label_forbidden_nodes=label_forbidden_nodes, 
-                                name_part=None, name_instance=name_instance)
-            
-        labels_slave, label_forbidden_nodes = \
-            LBC_3DOrthotropic.exclude_forbidden_nodes(myMdl, nodes=slave_face_nodes, 
-                                name_forbidden_sets=name_forbidden_sets, 
-                                label_forbidden_nodes=label_forbidden_nodes, 
-                                name_part=None, name_instance=name_instance)
-        
-        #* Node set names
-        if name_mfn is None:
-            name_mfn = 'MFNode-%s-%s'%(name_instance, name_master_face_set)
-        if name_sfn is None:
-            name_sfn = 'SFNode-%s-%s'%(name_instance, name_slave_face_set)
-                
-        #* Create node sets
-        myMdl.rootAssembly.SetFromNodeLabels(name=name_mfn, nodeLabels=((name_instance, labels_master),), unsorted=True)
-        myMdl.rootAssembly.SetFromNodeLabels(name=name_sfn, nodeLabels=((name_instance, labels_slave ),), unsorted=True)
-        
-        #* Print information
-        print('>>> --------------------')
-        print('[Linear boundary conditions] Instance: %s'%(name_instance))
-        print('    Node sets: master face [%s] <=> slave face [%s];'%(name_master_face_set, name_slave_face_set))
-        print('    Master face: nNodes= %d after excluding forbidden nodes from %d nodes'%(len(labels_master), num_node_master))
-        print('    Slave face:  nNodes= %d after excluding forbidden nodes from %d nodes'%(len(labels_slave), num_node_slave))
-        print('>>>')
-        
-        return name_mfn, name_sfn, label_forbidden_nodes
+                name_master_face_set, name_slave_face_set, coords_sorting,
+                name_forbidden_sets=[], label_forbidden_nodes=[],
+                name_mfn=None, name_sfn=None):
+        return NodeOperation.create_paired_node_sets(myMdl, name_instance, name_master_face_set, name_slave_face_set, coords_sorting, name_forbidden_sets, label_forbidden_nodes, name_mfn, name_sfn)
 
     @staticmethod
     def create_constraints_strain_vector(myMdl, name_eqn='Lin3D',
@@ -955,4 +879,295 @@ class LBC_3DOrthotropic_2(LBC_3DOrthotropic):
             
         else:
             raise ValueError("Invalid boundary condition type: %s"%(bc_type))
+
+
+class LBC_InPlaneLoad(NodeOperation):
+    '''
+    Linear boundary condition for in-plane loading of 3D models.
+    The out-of-plane faces are free of constraints, and the in-plane faces are subject to linear boundary conditions.
+    
+    Set 3 reference points (RP), use their displacement component `u1` to represent {epsilon}.
+    
+    - epsilon11 = u1(RP_11)
+    - epsilon22 = u1(RP_22)
+    - gamma12 = u1(RP_12)
+    
+    ''' 
+    @staticmethod
+    def create_node_sets(myMdl, name_instance,
+                name_master_face_set, name_slave_face_set, coords_sorting,
+                name_forbidden_sets=[], label_forbidden_nodes=[],
+                name_mfn=None, name_sfn=None):
+        return NodeOperation.create_paired_node_sets(myMdl, name_instance,
+                name_master_face_set, name_slave_face_set, coords_sorting,
+                name_forbidden_sets, label_forbidden_nodes, name_mfn, name_sfn)
+    
+    @staticmethod
+    def create_constraints_gamma12(myMdl, name_eqn='InPlane12',
+                name_mfn_x_set='MFn-X', name_sfn_x_set='SFn-X',
+                name_mfn_y_set='MFn-Y', name_sfn_y_set='SFn-Y',
+                length_x=1.0, length_y=1.0,
+                name_rp12='RP_12'):
+        '''
+        Create constraint equations for gamma12 = u1(RP_12).
+
+        Parameters
+        ---------------
+        myMdl: Abaqus Model object
+            model object
             
+        name_eqn: str
+            name of the equation constraint
+            
+        name_mfn_x_set, name_mfn_y_set: str
+            name of the set of master face nodes for x, y directions
+            
+        name_sfn_x_set, name_sfn_y_set: str
+            name of the set of slave face nodes for x, y directions
+            
+        length_x, length_y: float
+            the length of the model in x, y directions
+            
+        name_rp12: str
+            name of the reference point for the strain vector component
+            
+        Notes
+        ----------------
+        Assuming small deformation, one corner of the RVE is at the origin,
+        and the faces goes through the origin are called the slave faces,
+        the boundary conditions are:
+        
+        - u1(Mx) = 0.5*( u1(RP_12) * y(Mx)    )
+        - u2(Mx) = 0.5*( u1(RP_12) * length_x )
+        
+        - u1(Sx) = 0.5*( u1(RP_12) * y(Sx)    )
+        - u2(Sx) = 0
+
+        - u1(My) = 0.5*( u1(RP_12) * length_y )
+        - u2(My) = 0.5*( u1(RP_12) * x(My)    )
+
+        - u1(Sy) = 0
+        - u2(Sy) = 0.5*( u1(RP_12) * x(Sy)    )
+        '''
+        aa = myMdl.rootAssembly
+        
+        #* X-direction: master face
+        
+        face_nodes = aa.sets[name_mfn_x_set].nodes
+
+        for i_node in range(len(face_nodes)):
+
+            #* Create set for node
+            name_M = '%s-%d'%(name_mfn_x_set, i_node)
+            aa.Set(nodes=mesh.MeshNodeArray((face_nodes[i_node],)), name=name_M)
+
+            #* Coordinates
+            y = face_nodes[i_node].coordinates[1]
+
+            #* Constraint equations
+            '''
+            - u1(Mx) = 0.5*( u1(RP_12) * y(Mx)    )
+            - u2(Mx) = 0.5*( u1(RP_12) * length_x )
+            '''
+            myMdl.Equation(name='%s_MX-%d-1'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 1), (-0.5*y, name_rp12, 1)))
+            
+            myMdl.Equation(name='%s_MX-%d-2'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 2), (-0.5*length_x, name_rp12, 1)))
+    
+        #* X-direction: slave face
+        
+        face_nodes = aa.sets[name_sfn_x_set].nodes
+
+        for i_node in range(len(face_nodes)):
+
+            #* Create set for node
+            name_S = '%s-%d'%(name_sfn_x_set, i_node)
+            aa.Set(nodes=mesh.MeshNodeArray((face_nodes[i_node],)), name=name_S)
+
+            #* Coordinates
+            y = face_nodes[i_node].coordinates[1]
+            
+            #* Constraint equations
+            '''
+            - u1(Sx) = 0.5*( u1(RP_12) * y(Sx)    )
+            - u2(Sx) = 0
+            '''
+            myMdl.Equation(name='%s_SX-%d-1'%(name_eqn, i_node), 
+                    terms=((1.0, name_S, 1), (-0.5*y, name_rp12, 1)))
+            
+            myMdl.Equation(name='%s_SX-%d-2'%(name_eqn, i_node), 
+                    terms=((1.0, name_S, 2), (0.0, name_rp12, 1)))
+
+        #* Y-direction: master face
+        
+        face_nodes = aa.sets[name_mfn_y_set].nodes
+
+        for i_node in range(len(face_nodes)):
+
+            #* Create set for node
+            name_M = '%s-%d'%(name_mfn_y_set, i_node)
+            aa.Set(nodes=mesh.MeshNodeArray((face_nodes[i_node],)), name=name_M)
+
+            #* Coordinates
+            x = face_nodes[i_node].coordinates[0]
+
+            #* Constraint equations
+            '''
+            - u1(My) = 0.5*( u1(RP_12) * length_y )
+            - u2(My) = 0.5*( u1(RP_12) * x(My)    )
+            '''
+            myMdl.Equation(name='%s_MY-%d-1'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 1), (-0.5*length_y, name_rp12, 1)))
+            
+            myMdl.Equation(name='%s_MY-%d-2'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 2), (-0.5*x, name_rp12, 1)))
+
+        #* Y-direction: slave face
+        
+        face_nodes = aa.sets[name_sfn_y_set].nodes
+
+        for i_node in range(len(face_nodes)):
+
+            #* Create set for node
+            name_S = '%s-%d'%(name_sfn_y_set, i_node)
+            aa.Set(nodes=mesh.MeshNodeArray((face_nodes[i_node],)), name=name_S)
+
+            #* Coordinates
+            x = face_nodes[i_node].coordinates[0]
+
+            #* Constraint equations
+            '''
+            - u1(Sy) = 0
+            - u2(Sy) = 0.5*( u1(RP_12) * x(Sy)    )
+            '''
+            myMdl.Equation(name='%s_SY-%d-1'%(name_eqn, i_node), 
+                    terms=((1.0, name_S, 1), (0.0, name_rp12, 1)))
+            
+            myMdl.Equation(name='%s_SY-%d-2'%(name_eqn, i_node), 
+                    terms=((1.0, name_S, 2), (-0.5*x, name_rp12, 1)))
+
+    @staticmethod
+    def create_constraints_epsilon11(myMdl, name_eqn='InPlane11',
+                name_mfn_x_set='MFn-X',
+                length_x=1.0, name_rp11='RP_11'):
+        '''
+        Create constraint equations for epsilon11 = u1(RP_11).
+
+        Parameters
+        ---------------
+        myMdl: Abaqus Model object
+            model object
+            
+        name_eqn: str
+            name of the equation constraint
+            
+        name_mfn_x_set: str
+            name of the set of master face nodes for x directions
+            
+        length_x: float
+            the length of the model in x direction
+            
+        name_rp11: str
+            name of the reference points for the epsilon11 component
+
+        Notes
+        ----------------
+        Assuming small deformation, one corner of the RVE is at the origin,
+        and the faces goes through the origin are called the slave faces,
+        the boundary conditions are:
+        
+        - u1(Mx) = u1(RP_11) * length_x
+        - u2(Mx) = 0
+        
+        - u1(Sx) = 0
+        - u2(Sx) = 0
+
+        '''
+        aa = myMdl.rootAssembly
+        
+        #* X-direction: master face
+        
+        face_nodes = aa.sets[name_mfn_x_set].nodes
+
+        for i_node in range(len(face_nodes)):
+
+            #* Create set for node
+            name_M = '%s-%d'%(name_mfn_x_set, i_node)
+            aa.Set(nodes=mesh.MeshNodeArray((face_nodes[i_node],)), name=name_M)
+
+            #* Constraint equations
+            '''
+            - u1(Mx) = u1(RP_11) * length_x
+            - u2(Mx) = 0
+            '''
+            myMdl.Equation(name='%s_MX-%d-1'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 1), (-length_x, name_rp11, 1)))
+            
+            myMdl.Equation(name='%s_MX-%d-2'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 2), (0.0, name_rp11, 1)))
+    
+        #* X-direction: slave face
+        #* EncastreBC
+
+    @staticmethod
+    def create_constraints_epsilon22(myMdl, name_eqn='InPlane22',
+                name_mfn_y_set='MFn-Y',
+                length_y=1.0, name_rp22='RP_22'):
+        '''
+        Create constraint equations for epsilon22 = u1(RP_22).
+
+        Parameters
+        ---------------
+        myMdl: Abaqus Model object
+            model object
+            
+        name_eqn: str
+            name of the equation constraint
+            
+        name_mfn_y_set: str
+            name of the set of master face nodes for y directions
+            
+        length_y: float
+            the length of the model in y direction
+            
+        name_rp22: str
+            name of the reference point for the epsilon22 component
+
+        Notes
+        ----------------
+        Assuming small deformation, one corner of the RVE is at the origin,
+        and the faces goes through the origin are called the slave faces,
+        the boundary conditions are:
+
+        - u1(My) = 0
+        - u2(My) = u2(RP_22) * length_y
+
+        - u1(Sy) = 0
+        - u2(Sy) = 0
+        '''
+        aa = myMdl.rootAssembly
+        
+        #* Y-direction: master face
+        
+        face_nodes = aa.sets[name_mfn_y_set].nodes
+
+        for i_node in range(len(face_nodes)):
+
+            #* Create set for node
+            name_M = '%s-%d'%(name_mfn_y_set, i_node)
+            aa.Set(nodes=mesh.MeshNodeArray((face_nodes[i_node],)), name=name_M)
+
+            #* Constraint equations
+            '''
+            - u1(My) = 0
+            - u2(My) = u2(RP_22) * length_y
+            '''
+            myMdl.Equation(name='%s_MY-%d-1'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 1), (0.0, name_rp22, 1)))
+            
+            myMdl.Equation(name='%s_MY-%d-2'%(name_eqn, i_node), 
+                    terms=((1.0, name_M, 2), (-length_y, name_rp22, 1)))
+
+        #* Y-direction: slave face
+        #* EncastreBC

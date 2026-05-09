@@ -1414,3 +1414,85 @@ class NodeOperation(object):
         
         return name_node_set
 
+    @staticmethod
+    def create_paired_node_sets(myMdl, name_instance,
+                name_master_face_set, name_slave_face_set, coords_sorting,
+                name_forbidden_sets=[], label_forbidden_nodes=[],
+                name_mfn=None, name_sfn=None):
+        '''
+        Create node sets on the master/slave faces for the constraint equations.
+        
+        Parameters
+        ---------------
+        myMdl: Abaqus Model object
+            model object
+            
+        name_instance: str
+            name of the instance that the set belongs to.
+            
+        name_master_face_set: str
+            name of the master face set
+            
+        name_slave_face_set: str
+            name of the slave face set
+            
+        coords_sorting: tuple of int
+            a tuple contains coordinate indices for sorting nodes, e.g., (0,1), (1,2), (2,0).
+            
+        name_forbidden_sets: list of strings
+            name of sets that consists of forbidden nodes.
+            It can be a node set, or a geometry set of vertices, edges, or faces.
+            
+        label_forbidden_nodes: list of integers
+            labels of forbidden nodes.
+            An overlap between `name_forbidden_sets` and `label_forbidden_nodes` is allowed.
+            
+        name_mfn, name_sfn: str
+            name of the node sets on the master/slave faces.
+            If None, use default name.
+
+        Return
+        ----------------
+        name_mfn, name_sfn: str
+            name of the node sets on the master/slave faces.
+        '''
+        #* Sort nodes by coordinates to find node pairs automatically
+        master_face_nodes = NodeOperation.get_nodes_from_face(myMdl, name_master_face_set, coords_sorting, name_instance)
+        slave_face_nodes  = NodeOperation.get_nodes_from_face(myMdl, name_slave_face_set,  coords_sorting, name_instance)
+        
+        num_node_master = len(master_face_nodes)
+        num_node_slave  = len(slave_face_nodes)
+                
+        #* Exclude forbidden nodes
+        labels_master, label_forbidden_nodes = \
+            NodeOperation.exclude_forbidden_nodes(myMdl, nodes=master_face_nodes, 
+                                name_forbidden_sets=name_forbidden_sets, 
+                                label_forbidden_nodes=label_forbidden_nodes, 
+                                name_part=None, name_instance=name_instance)
+            
+        labels_slave, label_forbidden_nodes = \
+            NodeOperation.exclude_forbidden_nodes(myMdl, nodes=slave_face_nodes, 
+                                name_forbidden_sets=name_forbidden_sets, 
+                                label_forbidden_nodes=label_forbidden_nodes, 
+                                name_part=None, name_instance=name_instance)
+    
+        #* Node set names
+        if name_mfn is None:
+            name_mfn = 'MFNode-%s-%s'%(name_instance, name_master_face_set)
+        if name_sfn is None:
+            name_sfn = 'SFNode-%s-%s'%(name_instance, name_slave_face_set)
+                
+        #* Create node sets
+        myMdl.rootAssembly.SetFromNodeLabels(name=name_mfn, nodeLabels=((name_instance, labels_master),), unsorted=True)
+        myMdl.rootAssembly.SetFromNodeLabels(name=name_sfn, nodeLabels=((name_instance, labels_slave ),), unsorted=True)
+        
+        #* Print information
+        print('>>> --------------------')
+        print('[Paired boundary conditions] Instance: %s'%(name_instance))
+        print('    Node sets: master face [%s] <=> slave face [%s];'%(name_master_face_set, name_slave_face_set))
+        print('    Master face: nNodes= %d after excluding forbidden nodes from %d nodes'%(len(labels_master), num_node_master))
+        print('    Slave face:  nNodes= %d after excluding forbidden nodes from %d nodes'%(len(labels_slave), num_node_slave))
+        print('>>>')
+        
+        return name_mfn, name_sfn, label_forbidden_nodes
+
