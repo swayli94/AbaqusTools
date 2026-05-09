@@ -11,7 +11,7 @@
         "composite_ply_thickness": 0.5,
         "num_element_thickness": 1,
         
-        "plate_seedPart_size": 2.0,
+        "plate_seedPart_size": 10.0,
 
         "radius_ratio_partition_circle": 1.5,
         "hole_circumferential_num_seedEdgeByNumber": 16,

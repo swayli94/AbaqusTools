@@ -1,5 +1,5 @@
 '''
-A laminate with 3D stress elements (C3D8R).
+A laminate with 3D stress elements (S4R).
 '''
 import os
 import time
@@ -75,9 +75,6 @@ class OpenHolePlate(Part):
         self.create_set()
         
         self.create_partition_hole()
-        
-        self.create_partition_ply()
-        self.loop_over_plies()
         
         if not self.is_only_geometry:
         
@@ -189,8 +186,8 @@ class OpenHolePlate(Part):
         mySkt.sketchOptions.setValues(gridOrigin=(0.0, 0.0), gridAngle=0.0)
         mySkt.retrieveSketch(sketch=self.model.sketches['plate_top_view'])
 
-        #* Part by extrusion
-        myPrt.BaseSolidExtrude(sketch=mySkt, depth=self.length_z)
+        #* Part by sketch
+        myPrt.BaseShell(sketch=mySkt)
 
         #* Post procedure
         myPrt.setValues(geometryRefinement=EXTRA_FINE)
@@ -208,26 +205,9 @@ class OpenHolePlate(Part):
         
         myPrt = self.model.parts[self.name_part]
 
-        faces = self.get_faces(myPrt, (0, 0.5*self.length_y, 0.5*self.length_z))
-        myPrt.Surface(side1Faces=faces, name='face_x0')
-        
-        faces = self.get_faces(myPrt, (self.length_x, 0.5*self.length_y, 0.5*self.length_z))
-        myPrt.Surface(side1Faces=faces, name='face_x1')
-
-        faces = self.get_faces(myPrt, (0.5*self.length_x, 0.0, 0.5*self.length_z))
-        myPrt.Surface(side1Faces=faces, name='face_y0')
-        
-        faces = self.get_faces(myPrt, (0.5*self.length_x, self.length_y, 0.5*self.length_z))
-        myPrt.Surface(side1Faces=faces, name='face_y1')
-        
+        myPrt = self.model.parts[self.name_part]
         faces = self.get_faces(myPrt, (pt_x, pt_y, 0.0))
-        myPrt.Surface(side1Faces=faces, name='face_z0')
-        
-        faces = self.get_faces(myPrt, (pt_x, pt_y, self.length_z))
-        myPrt.Surface(side1Faces=faces, name='face_z1')
-
-        faces = self.get_faces(myPrt, (self.xc_hole + self.r_hole, self.yc_hole, 0.5*self.length_z))
-        myPrt.Surface(side1Faces=faces, name='face_hole')
+        myPrt.Surface(side1Faces=faces, name='face')
 
     def create_set(self):
         
@@ -241,42 +221,18 @@ class OpenHolePlate(Part):
         pt_y = 0.5*(yc_hole - r_hole)
         
         myPrt = self.model.parts[self.name_part]
-        myPrt.Set(cells=myPrt.cells, name='all') 
-
-        self.create_geometry_set('face_x0', (0.0,    0.5*ly, 0.5*lz), geometry='face')
-        self.create_geometry_set('face_x1', (lx,     0.5*ly, 0.5*lz), geometry='face')
-        self.create_geometry_set('face_y0', (0.5*lx, 0.0,    0.5*lz), geometry='face')
-        self.create_geometry_set('face_y1', (0.5*lx, ly,     0.5*lz), geometry='face')
-        self.create_geometry_set('face_z0', (pt_x,   pt_y,   0.0   ), geometry='face')
-        self.create_geometry_set('face_z1', (pt_x,   pt_y,   lz    ), geometry='face')
-        self.create_geometry_set('face_hole', (xc_hole + r_hole, yc_hole, 0.5*lz), geometry='face')
-
-        self.create_geometry_set('edge_x_y0z0', (0.5*lx, 0.0, 0.0), geometry='edge')
-        self.create_geometry_set('edge_x_y1z0', (0.5*lx, ly,  0.0), geometry='edge')
-        self.create_geometry_set('edge_x_y0z1', (0.5*lx, 0.0, lz ), geometry='edge')
-        self.create_geometry_set('edge_x_y1z1', (0.5*lx, ly,  lz ), geometry='edge')
-
-        self.create_geometry_set('edge_y_z0x0', (0.0, 0.5*ly, 0.0), geometry='edge')
-        self.create_geometry_set('edge_y_z1x0', (0.0, 0.5*ly, lz ), geometry='edge')
-        self.create_geometry_set('edge_y_z0x1', (lx,  0.5*ly, 0.0), geometry='edge')
-        self.create_geometry_set('edge_y_z1x1', (lx,  0.5*ly, lz ), geometry='edge')
-
-        self.create_geometry_set('edge_z_x0y0', (0.0, 0.0, 0.5*lz), geometry='edge')
-        self.create_geometry_set('edge_z_x1y0', (lx,  0.0, 0.5*lz), geometry='edge')
-        self.create_geometry_set('edge_z_x0y1', (0.0, ly,  0.5*lz), geometry='edge')
-        self.create_geometry_set('edge_z_x1y1', (lx,  ly,  0.5*lz), geometry='edge')
+        myPrt.Set(faces=myPrt.faces, name='all')
         
-        self.create_geometry_set('edge_hole_z0', (xc_hole + r_hole, yc_hole, 0.0), geometry='edge')
-        self.create_geometry_set('edge_hole_z1', (xc_hole + r_hole, yc_hole, lz ), geometry='edge')
-        
-        self.create_geometry_set('vertex_000', (0.0, 0.0, 0.0), geometry='vertex')
-        self.create_geometry_set('vertex_100', (lx,  0.0, 0.0), geometry='vertex')
-        self.create_geometry_set('vertex_010', (0.0, ly,  0.0), geometry='vertex')
-        self.create_geometry_set('vertex_110', (lx,  ly,  0.0), geometry='vertex')
-        self.create_geometry_set('vertex_001', (0.0, 0.0, lz ), geometry='vertex')
-        self.create_geometry_set('vertex_101', (lx,  0.0, lz ), geometry='vertex')
-        self.create_geometry_set('vertex_011', (0.0, ly,  lz ), geometry='vertex')
-        self.create_geometry_set('vertex_111', (lx,  ly,  lz ), geometry='vertex')
+        self.create_geometry_set('edge_x0', (0.0,    0.5*ly, 0.0), geometry='edge')
+        self.create_geometry_set('edge_x1', (lx,     0.5*ly, 0.0), geometry='edge')
+        self.create_geometry_set('edge_y0', (0.5*lx, 0.0,    0.0), geometry='edge')
+        self.create_geometry_set('edge_y1', (0.5*lx, ly,     0.0), geometry='edge')
+        self.create_geometry_set('edge_hole', (xc_hole + r_hole, yc_hole, 0.0), geometry='edge')
+
+        self.create_geometry_set('vertex_00', (0.0, 0.0, 0.0), geometry='vertex')
+        self.create_geometry_set('vertex_10', (lx,  0.0, 0.0), geometry='vertex')
+        self.create_geometry_set('vertex_01', (0.0, ly,  0.0), geometry='vertex')
+        self.create_geometry_set('vertex_11', (lx,  ly,  0.0), geometry='vertex')
 
     #* Partition and create surfaces and sets for the partition
     
@@ -302,109 +258,45 @@ class OpenHolePlate(Part):
 
         myPrt.PartitionFaceBySketch(
                 sketchUpEdge=self.get_datum_by_name(myPrt, 'XAXIS'), 
-                faces=myPrt.surfaces['face_z0'].faces,
+                faces=myPrt.surfaces['face'].faces,
                 sketchOrientation=BOTTOM, sketch=mySkt)
 
         del self.model.sketches['__profile__']
 
-        #* Partition cell by the partition circle
-        edges = self.get_edges(myPrt, (self.xc_hole - self.r_partition, self.yc_hole, 0.0))
-        myPrt.Set(edges=edges, name='edge_partition_circle')
-        
-        myPrt.PartitionCellByExtrudeEdge(
-            line=self.get_datum_by_name(myPrt, 'ZAXIS'), 
-            cells=myPrt.cells, edges=edges, sense=FORWARD)
-        
         dd = 0.5*(self.r_partition+self.r_hole)
-        cells = self.get_cells(myPrt, (self.xc_hole + dd, self.yc_hole, 0.5*self.length_z))
-        myPrt.Set(cells=cells, name='partition_circle') 
-        
+        self.create_geometry_set('partition_circle',
+                    (self.xc_hole+dd, self.yc_hole, 0.0), geometry='face')
+
         #* Partition cell to squares by 4 planes
         x0 = self.xc_hole - 0.5*self.width_partition
         x1 = self.xc_hole + 0.5*self.width_partition
         y0 = self.yc_hole - 0.5*self.width_partition
         y1 = self.yc_hole + 0.5*self.width_partition
         
-        myPrt.PartitionCellByPlaneThreePoints(cells=myPrt.cells, 
-            point1=(x0, y0, 0.0), point2=(x1, y0, 0.0), point3=(x0, y0, 1.0))
-        myPrt.PartitionCellByPlaneThreePoints(cells=myPrt.cells, 
-            point1=(x0, y1, 0.0), point2=(x1, y1, 0.0), point3=(x0, y1, 1.0))
-        myPrt.PartitionCellByPlaneThreePoints(cells=myPrt.cells, 
-            point1=(x0, y0, 0.0), point2=(x0, y1, 0.0), point3=(x0, y0, 1.0))
-        myPrt.PartitionCellByPlaneThreePoints(cells=myPrt.cells, 
-            point1=(x1, y0, 0.0), point2=(x1, y1, 0.0), point3=(x1, y0, 1.0))
-        
+        myPrt.PartitionFaceByShortestPath(faces=myPrt.faces, 
+            point1=(x0, 0.0, 0.0), point2=(x0, self.length_y, 0.0))
+        myPrt.PartitionFaceByShortestPath(faces=myPrt.faces, 
+            point1=(x1, 0.0, 0.0), point2=(x1, self.length_y, 0.0))
+        myPrt.PartitionFaceByShortestPath(faces=myPrt.faces, 
+            point1=(0.0, y0, 0.0), point2=(self.length_x, y0, 0.0))
+        myPrt.PartitionFaceByShortestPath(faces=myPrt.faces, 
+            point1=(0.0, y1, 0.0), point2=(self.length_x, y1, 0.0))
+
         dd = 0.5*(self.width_partition*0.5+self.r_partition)
-        cells = self.get_cells(myPrt, (self.xc_hole + dd, self.yc_hole, 0.5*self.length_z))
-        myPrt.Set(cells=cells, name='partition_square') 
+        self.create_geometry_set('partition_square',
+                    (self.xc_hole+dd, self.yc_hole, 0.0), geometry='face')
         
         #* Partition cell by diagonal planes
-        myPrt.PartitionCellByPlaneThreePoints(cells=myPrt.sets['partition_circle'].cells, 
-            point1=(x0, y0, 0.0), point2=(x1, y1, 0.0), point3=(x0, y0, 1.0))
-        myPrt.PartitionCellByPlaneThreePoints(cells=myPrt.sets['partition_circle'].cells, 
-            point1=(x0, y1, 0.0), point2=(x1, y0, 0.0), point3=(x0, y1, 1.0))
+        myPrt.PartitionFaceByShortestPath(myPrt.sets['partition_circle'].faces, 
+            point1=(x0, y0, 0.0), point2=(x1, y1, 0.0))
+        myPrt.PartitionFaceByShortestPath(myPrt.sets['partition_square'].faces, 
+            point1=(x0, y0, 0.0), point2=(x1, y1, 0.0))
         
-        myPrt.PartitionCellByPlaneThreePoints(cells=myPrt.sets['partition_square'].cells, 
-            point1=(x0, y0, 0.0), point2=(x1, y1, 0.0), point3=(x0, y0, 1.0))
-        myPrt.PartitionCellByPlaneThreePoints(cells=myPrt.sets['partition_square'].cells, 
-            point1=(x0, y1, 0.0), point2=(x1, y0, 0.0), point3=(x0, y1, 1.0))
+        myPrt.PartitionFaceByShortestPath(myPrt.sets['partition_circle'].faces, 
+            point1=(x0, y1, 0.0), point2=(x1, y0, 0.0))
+        myPrt.PartitionFaceByShortestPath(myPrt.sets['partition_square'].faces, 
+            point1=(x0, y1, 0.0), point2=(x1, y0, 0.0))
     
-    #* Partition, surface, set for ply-by-ply modeling
-    
-    def create_partition_ply(self):
-        '''
-        Create partition for each ply
-        '''
-        myPrt = self.model.parts[self.name_part]
-        
-        num_ply = self.get_num_ply()
-        
-        z_top = self.length_z
-        z_bottom = 0.0
-        
-        for i in range(num_ply-1):
-            
-            r = (i+1.0)/num_ply
-            z = (1-r)*z_bottom + r*z_top
-            
-            myPrt.PartitionCellByPlaneThreePoints(cells=myPrt.cells, 
-                point1=tuple([0, 0, z]),
-                point2=tuple([1, 0, z]),
-                point3=tuple([0, 1, z]))
-        
-    def loop_over_plies(self):
-        '''
-        Loop over plies: seed edge, and create sets
-        '''
-        myPrt = self.model.parts[self.name_part]
-        
-        #* Ply parameters
-        num_ply = self.get_num_ply()
-        
-        #* Stack direction of plate,
-        #* the reference face is the top surface, the stacking direction is from bottom to top,
-        #* The 1st ply is in the bottom surface (z0)
-        z_top = self.length_z
-        z_bottom = 0.0
-        
-        t0 = time.time()
-        for i_ply in range(num_ply):
-            
-            t1 = time.time()
-            r0 = (i_ply*1.0)/num_ply
-            r1 = (i_ply+1.0)/num_ply
-            z0 = (1-r0)*z_bottom + r0*z_top
-            z1 = (1-r1)*z_bottom + r1*z_top
-
-            self._seed_edge_ply(myPrt, z0, z1)
-            
-            self._create_set_ply(z0, z1, i_ply)
-            
-            t2 = time.time()
-            print('>>> Seeding ply %2d of [%s], t= %.1f s'%(i_ply+1, self.name_part, t2-t1))
-            
-        print('>>> Seeding [%s], t= %.1f min'%(self.name_part, (t2-t0)/60.0))
-
     #* Meshing
     
     def set_seeding(self):
@@ -413,174 +305,36 @@ class OpenHolePlate(Part):
         myPrt.seedPart(size=self.pMesh['plate_seedPart_size'], 
                         deviationFactor=0.1, minSizeFactor=0.1)
         
+        self._seed_edge_face_hole_radial(myPrt, 0.0, reverse=True)
+        
+        self._seed_edge_face_circumferential_partition(myPrt, 0.0)
+        
     def create_mesh(self):
         
-        #* Stack direction of plate,
-        #* the reference face is the top surface, the stacking direction is from bottom to top,
-        #* The 1st ply is in the bottom surface (z0)
-        #* The top face is the z1 face
-
-        t0 = time.time()
-        
         myPrt = self.model.parts[self.name_part]
-        myPrt.setMeshControls(regions=myPrt.cells, elemShape=HEX)
-        myPrt.assignStackDirection(referenceRegion=myPrt.surfaces['face_z1'].faces[0], cells=myPrt.cells)
+        myPrt.setMeshControls(regions=myPrt.faces, elemShape=QUAD, technique=STRUCTURED)
         myPrt.generateMesh()
-
-        t1 = time.time()
-        print('>>> Meshing of [%s], t= %.1f min'%(self.name_part, (t1-t0)/60.0))
 
     def set_element_type(self):
         
         myPrt = self.model.parts[self.name_part]
-        
-        self.set_element_type_of_part(myPrt, kind='3D stress', hourglassControl='enhanced')
+        self.set_element_type_of_part(myPrt, kind='shell')
         
     def set_section_assignment(self):
         
-        #* Stack direction of plate,
-        #* the reference face is the top surface, the stacking direction is from bottom to top,
-        #* The 1st ply is in the bottom surface (z0)
-        #* The top face is the z1 face
-
         myPrt = self.model.parts[self.name_part]
         
-        myPrt.SectionAssignment(region=myPrt.sets['all'], sectionName='orthotropic', offset=0.0, 
-            offsetType=MIDDLE_SURFACE, offsetField='', thicknessAssignment=FROM_SECTION)
+        self.set_CompositeLayup_of_set(myPrt, 
+                name_set=       'all', 
+                total_thickness=self.length_z, 
+                ply_angle=      self.pMesh['plate_CompositePly_orientationValue'],
+                eNum_thickness= self.pMesh['num_element_thickness'],
+                symmetric=      self.pMesh['plate_CompositeLayup_symmetric'],
+                numIntPoints=   self.pMesh['plate_CompositePly_numIntPoints'],
+                name_csys_datum='csys_plate',
+                material='orthotropic',
+                elementType='shell')
         
-        num_ply = self.get_num_ply()
-
-        for i_ply in range(num_ply):
-            
-            name_set = 'ply-%d'%(i_ply+1)
-            
-            angle = self.get_angle_ply(i_ply)
-
-            localCsys = self.get_datum_by_name(myPrt, 'csys_plate')
-            
-            myPrt.MaterialOrientation(region=myPrt.sets[name_set], 
-                orientationType=SYSTEM, 
-                axis=AXIS_3,                # Additional Rotation Direction
-                localCsys=localCsys,        # Orientation by a datum CSYS
-                fieldName='', 
-                additionalRotationType=ROTATION_ANGLE, 
-                additionalRotationField='', 
-                angle=angle,                # Additional Rotation angle (degree)
-                stackDirection=STACK_3)     # Stacking Direction (STACK_3: bottom to top)
-    
-    def get_num_ply(self):
-        '''
-        Get number of plies in the plate
-        
-        Returns
-        ------------
-        num_ply: int
-            number of plies
-        '''
-        return len(self.pMesh['plate_CompositePly_orientationValue']) * (1 + self.pMesh['plate_CompositeLayup_symmetric'])
-    
-    def get_angle_ply(self, i_ply):
-        '''
-        Get the angle of ply in the plate
-        
-        Parameters
-        ------------
-        i_ply: int
-            index of the ply, starts from 0
-            
-        Returns
-        ------------
-        angle: float
-            the composite ply's orientation angle (degree)
-        '''
-        layup = self.pMesh['plate_CompositePly_orientationValue']
-        
-        ii = i_ply
-        
-        if self.pMesh['plate_CompositeLayup_symmetric'] and i_ply>=len(layup):
-        
-            ii = 2*len(layup) - i_ply - 1
-
-        return layup[ii]
-    
-    #* Ply-by-ply modeling 
-    
-    def _seed_edge_ply(self, myPrt, z0, z1):
-        '''
-        Seed edges on one face of the ply partition
-        
-        Parameters
-        ------------------
-        myPrt: Abaqus part object
-            part of the plate
-
-        z0, z1: float
-            z coordinates of the ply partition faces
-        '''
-        #* Thickness direction edge (edge_z_x0y1)
-        edges = self.get_edges(myPrt, (0.0, 0.0, 0.5*(z0+z1)))
-        myPrt.seedEdgeByNumber(edges=edges,
-                    number=self.pMesh['num_element_thickness'], constraint=FIXED)
-
-        #* Face edges
-        self._seed_edge_face_hole_radial(myPrt, z0, reverse=False)
-        self._seed_edge_face_circumferential_partition(myPrt, z0)
- 
-        if z1 == self.length_z:
-            
-            self._seed_edge_face_hole_radial(myPrt, z1, reverse=True)
-            self._seed_edge_face_circumferential_partition(myPrt, z1)
-
-    def _create_set_ply(self, z0, z1, i_ply):
-        '''
-        Create set for each ply
-        
-        Parameters
-        ------------------
-        z0, z1: float
-            z coordinates of the ply partition faces
-
-        i_ply: int
-            index of the ply
-        '''
-        z_mid = 0.5*(z0+z1)
-        width = 0.5*self.width_partition
-
-        EPSILON = 0.001
-        ANGLE_INCREMENT= 0.5*np.pi
-
-        #* Cells around the hole
-        dc = 0.5*(self.r_hole + self.r_partition)
-        ds = 0.5*(self.r_partition + self.width_partition*0.5)
-
-        points=[]
-        for i in range (4):
-            
-            angle= ANGLE_INCREMENT * i
-            
-            x = self.xc_hole + dc*np.sin(angle)
-            y = self.yc_hole + dc*np.cos(angle)
-            points.append((x,y,z_mid))
-            
-            x = self.xc_hole + ds*np.sin(angle)
-            y = self.yc_hole + ds*np.cos(angle)
-            points.append((x,y,z_mid))
-            
-        #* Cells of rectangular blocks
-        points += [
-            (self.xc_hole - width - EPSILON,    self.yc_hole - width - EPSILON, z_mid),
-            (self.xc_hole,                      self.yc_hole - width - EPSILON, z_mid),
-            (self.xc_hole + width + EPSILON,    self.yc_hole - width - EPSILON, z_mid),
-            (self.xc_hole - width - EPSILON,    self.yc_hole,                   z_mid),
-            (self.xc_hole + width + EPSILON,    self.yc_hole,                   z_mid),
-            (self.xc_hole - width - EPSILON,    self.yc_hole + width + EPSILON, z_mid),
-            (self.xc_hole,                      self.yc_hole + width + EPSILON, z_mid),
-            (self.xc_hole + width + EPSILON,    self.yc_hole + width + EPSILON, z_mid),
-        ]
-
-        #* Create set
-        self.create_geometry_set('ply-%d'%(i_ply+1), points, geometry='cell')
-
     def _seed_edge_face_hole_radial(self, myPrt, z, reverse=False):
         '''
         Seed the edges around the hole in radial direction in one face.
@@ -738,13 +492,22 @@ class LaminateModel(Model):
         
     def setup_outputs(self):
 
-        self.model.fieldOutputRequests['F-Output-1'].setValues(
-            variables=('S', 'E', 'U', 'RF'), frequency=LAST_INCREMENT)
+        self.model.FieldOutputRequest(name='F-Output-1', 
+            createStepName='Loading', variables=('S', 'E', 'U', 'RF'),
+            frequency=LAST_INCREMENT)
         
-        self.model.FieldOutputRequest(name='FO-layup', 
-            createStepName='Loading', variables=('S', 'E', 'SDV'), frequency=LAST_INCREMENT,
+        variables = ('S', 'E')
+        if 'failure_model' in self.pMesh:
+            if self.pMesh['failure_model'] == 'Hashin':
+                variables_hashin = ('DMICRT', 'HSNFTCRT', 'HSNFCCRT', 'HSNMTCRT', 'HSNMCCRT')
+                variables += variables_hashin
+
+        self.model.FieldOutputRequest(name='Layup-Output', 
+            createStepName='Loading', variables=variables,
+            frequency=LAST_INCREMENT, 
             layupNames=('plate.all', ), 
-            layupLocationMethod=ALL_LOCATIONS, rebar=EXCLUDE)
+            layupLocationMethod=SPECIFIED, outputAtPlyTop=False, outputAtPlyMid=True, 
+            outputAtPlyBottom=False, rebar=EXCLUDE)
         
     def setup_jobs(self):
         '''
