@@ -512,7 +512,7 @@ def calculate_ply_level_stress_field(parameters: dict,
     field = {
         "X": mesh["X"],
         "Y": mesh["Y"],
-        "z_edges": np.array(laminate.z_position, dtype=float),
+        "z_edges": np.array(laminate.z_position, dtype=float) + 0.5*length_z, # z in [0, length_z]
         "sigma_xx": mid_plane_field["sigma_x"],
         "sigma_yy": mid_plane_field["sigma_y"],
         "tau_xy": mid_plane_field["tau_xy"],

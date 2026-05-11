@@ -213,6 +213,14 @@ def extract_mid_plane_strain(name_job, fname_save='specimen-mid-plane-strain-S4R
         step='Loading', frame=-1, variable='SF', component=None,
         name_instance=NAME_INSTANCE, name_set=NAME_SET)
     
+    _, value_SM = odb.probe_element_set_values(
+        step='Loading', frame=-1, variable='SM', component=None,
+        name_instance=NAME_INSTANCE, name_set=NAME_SET)
+    
+    _, value_SK = odb.probe_element_set_values(
+        step='Loading', frame=-1, variable='SK', component=None,
+        name_instance=NAME_INSTANCE, name_set=NAME_SET)
+    
     n_elements = len(element_labels)
     for i in range(n_elements):
         if _element_labels[i] != element_labels[i]:
@@ -220,17 +228,26 @@ def extract_mid_plane_strain(name_job, fname_save='specimen-mid-plane-strain-S4R
 
     with open(fname_save, 'w') as f:
         
-        f.write('Variables= X Y Z index N11 N22 N12 epsilon11 epsilon22 epsilon12\n')
+        f.write('Variables= X Y Z index N11 N22 N12 M11 M22 M12')
+        f.write(' epsilon11 epsilon22 epsilon12 kappa11 kappa22 kappa12\n')
         f.write('zone T=" %s %s "\n'%(NAME_INSTANCE, NAME_SET))
 
         for i_elem in range(n_elements):
             for j in range(3):
                 f.write(' %14.6E'%(coordinates[i_elem][j]))
             f.write(' %d'%(indices_fieldOutput[i_elem]))
-            for j in range(3):
-                f.write(' %14.6E'%(value_SF[i_elem, j]))
-            for j in range(3):
-                f.write(' %14.6E'%(value_SE[i_elem, j]))
+            f.write(' %14.6E'%(value_SF[i_elem, 0])) # SF1 = N11
+            f.write(' %14.6E'%(value_SF[i_elem, 1])) # SF2 = N22
+            f.write(' %14.6E'%(value_SF[i_elem, 3])) # SF6 = N12
+            f.write(' %14.6E'%(value_SM[i_elem, 1])) # SM1 = M11
+            f.write(' %14.6E'%(value_SM[i_elem, 0])) # SM2 = M22
+            f.write(' %14.6E'%(value_SM[i_elem, 2])) # SM3 = M12
+            f.write(' %14.6E'%(value_SE[i_elem, 0])) # SE1 = epsilon11
+            f.write(' %14.6E'%(value_SE[i_elem, 1])) # SE2 = epsilon22
+            f.write(' %14.6E'%(value_SE[i_elem, 3])) # SE6 = epsilon12
+            f.write(' %14.6E'%(value_SK[i_elem, 1])) # SK1 = kappa11
+            f.write(' %14.6E'%(value_SK[i_elem, 0])) # SK2 = kappa22
+            f.write(' %14.6E'%(value_SK[i_elem, 2])) # SK3 = kappa12
             f.write('\n')
 
 

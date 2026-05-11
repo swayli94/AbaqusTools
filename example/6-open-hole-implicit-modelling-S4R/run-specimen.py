@@ -41,7 +41,8 @@ if __name__ == '__main__':
             json.dump(default_parameters, f, indent=4)
             
         scale = default_parameters['strain_scale']
-        characteristic_distance = default_parameters['characteristic_distance']
+        # characteristic_distance = default_parameters['characteristic_distance']
+        characteristic_distance = default_parameters['pGeo']['r_hole']*2.0
         
         os.system(COMMAND+fname_py)
         
@@ -70,7 +71,9 @@ if __name__ == '__main__':
                     N11=float(values[4]),
                     N22=float(values[5]),
                     N12=float(values[6]),
-                    characteristic_distance=characteristic_distance
+                    characteristic_distance=characteristic_distance,
+                    n_points_radial=32,
+                    n_points_angular=64,
                 )
 
                 save_tecplot(name_job+'-stress-field.dat', field, results_by_plies)
