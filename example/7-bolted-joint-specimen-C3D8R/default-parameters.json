@@ -1,0 +1,61 @@
+{
+    "pGeo": {
+        "len_x_plate": 100,
+        "len_y_plate": 30,
+        "len_z_plate": 5,
+        "len_x_overlap": 30,
+        "fasteners": [
+            {
+                "x_center": 85,
+                "y_center": 15,
+                "r_hole": 4,
+                "r_washer": 8,
+                "thick_head": 3.0
+            }
+        ]
+    },
+    "pMesh": {
+        "composite_ply_thickness": 0.5,
+        "num_element_thickness": 1,
+        
+        "bolt_seedPart_size": 1.0,
+        "plate_seedPart_size": 2.0,
+
+        "radius_ratio_partition_circle": 1.5,
+        "hole_circumferential_num_seedEdgeByNumber": 16,
+        "circle_radial_bias_seedEdgeByBias": 5.0,
+        "circle_radial_num_seedEdgeByBias": 16,
+        "square_radial_bias_seedEdgeByBias": 3.0,
+        "square_radial_num_seedEdgeByBias": 8,
+
+        "plate_CompositeLayup_symmetric": true,
+        "plate_CompositePly_numIntPoints": 3,
+        "plate_CompositePly_orientationValue": [ 45, -45, 0, 90, 0 ],
+
+        "E11": 1.65E5,
+        "E22": 8.4E3,
+        "E33": 8.4E3,
+        "nu12": 0.34,
+        "nu13": 0.34,
+        "nu23": 0.5,
+        "G12": 5.6E3,
+        "G13": 5.6E3,
+        "G23": 2.8E3
+    },
+    "pRun": {
+        "timePeriod": 1.0,
+        "maxNumInc": 10000000,
+        "initialInc": 0.01,
+        "minInc": 1e-15,
+        "maxInc": 0.1,
+        "nlgeom": false,
+        "memory_max_percentage": 90,
+        "numCpus": 4,
+        "numThreadsPerMpiProcess": 1
+    },
+    "index_run": 0,
+    "index_case": 0,
+    "displacement": [1.0, 0.0, 0.0],
+    "not_run_job": true,
+    "target_volume_fraction": 0.4
+}
