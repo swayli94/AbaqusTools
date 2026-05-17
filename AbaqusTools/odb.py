@@ -680,6 +680,30 @@ class OdbOperation(object):
             
         return values
     
+    def probe_node_set_values(self, step='Loading', frame=-1, variable='U', component=None,
+                                 name_instance='ASSEMBLY', name_set=None):
+        '''
+        Probe values of a set of nodes.
+        '''
+        _frame = session.odbs[self.name_job].steps[step].frames[frame]
+        _field = _frame.fieldOutputs[variable]
+        if isinstance(component, str):
+            _field = _field.getScalarField(componentLabel=component)
+        
+        if name_instance is None:
+            node_set = self.odb.rootAssembly.nodeSets[name_set]
+        else:
+            node_set = self.odb.rootAssembly.instances[name_instance].nodeSets[name_set]
+        data = _field.getSubset(region=node_set)
+        
+        node_labels = []
+        values = []
+        for v in data.values:
+            node_labels.append(v.nodeLabel)
+            values.append(v.data)
+            
+        return node_labels, np.array(values)
+    
     def probe_element_values(self, step='Loading', frame=-1, variable='U', component=None, index_fieldOutput=0):
         '''
         Probe values of a element or elements. The value is stored in integration point(s).
@@ -751,7 +775,8 @@ class OdbOperation(object):
         return values
     
     def probe_element_set_values(self, step='Loading', frame=-1, variable='S', component=None,
-                                 name_instance='ASSEMBLY', name_set=None):
+                                 name_instance='ASSEMBLY', name_set=None,
+                                 position=INTEGRATION_POINT):
         '''
         Probe values of a set of elements. The value is stored in integration point(s).
         '''
@@ -760,8 +785,12 @@ class OdbOperation(object):
         if isinstance(component, str):
             _field = _field.getScalarField(componentLabel=component)
         
-        elem_set = self.odb.rootAssembly.instances[name_instance].elementSets[name_set]
-        data = _field.getSubset(region=elem_set, position=INTEGRATION_POINT)
+        if name_instance is None:
+            elem_set = self.odb.rootAssembly.elementSets[name_set]
+        else:
+            elem_set = self.odb.rootAssembly.instances[name_instance].elementSets[name_set]
+
+        data = _field.getSubset(region=elem_set, position=position)
         
         element_labels = []
         values = []

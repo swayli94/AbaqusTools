@@ -18,7 +18,7 @@
         "num_element_thickness": 1,
         
         "bolt_seedPart_size": 1.0,
-        "plate_seedPart_size": 2.0,
+        "plate_seedPart_size": 5.0,
 
         "radius_ratio_partition_circle": 1.5,
         "hole_circumferential_num_seedEdgeByNumber": 16,
@@ -26,6 +26,8 @@
         "circle_radial_num_seedEdgeByBias": 16,
         "square_radial_bias_seedEdgeByBias": 3.0,
         "square_radial_num_seedEdgeByBias": 8,
+
+        "fastener_partition_seedEdgeByNumber": 5,
 
         "plate_CompositeLayup_symmetric": true,
         "plate_CompositePly_numIntPoints": 3,
@@ -54,7 +56,7 @@
     },
     "index_run": 0,
     "index_case": 0,
-    "displacement": [1.0, 0.0, 0.0],
+    "displacement": [0.01, 0.0, 0.0],
     "not_run_job": false,
     "target_volume_fraction": 0.4
 }

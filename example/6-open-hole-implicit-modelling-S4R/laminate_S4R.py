@@ -157,8 +157,6 @@ class ImplicitModellingPlate(Part):
         pt_y = 0.5*(self.yc_hole - self.r_hole)
         
         myPrt = self.model.parts[self.name_part]
-
-        myPrt = self.model.parts[self.name_part]
         faces = self.get_faces(myPrt, (pt_x, pt_y, 0.0))
         myPrt.Surface(side1Faces=faces, name='face')
 
