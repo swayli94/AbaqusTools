@@ -10,7 +10,7 @@ from AbaqusTools.functions import clean_pyc_files, clean_temporary_files
 
 COMMAND = 'abaqus cae noGUI='
 
-fname_py = 'bolted_joint_single_lap_C3D8R.py'
+fname_py = 'bolted_joint_single_lap_SC8R.py'
 
 DISPLACEMENT = [[0.01, 0.0, 0.0],
                 [0.0, 0.01, 0.0],

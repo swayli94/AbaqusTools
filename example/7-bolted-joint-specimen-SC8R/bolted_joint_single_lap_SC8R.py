@@ -1,5 +1,5 @@
 '''
-Single lap specimen for bolted joints (C3D8R).
+Single lap specimen for bolted joints (SC8R).
 '''
 import os
 import time
@@ -77,17 +77,14 @@ class OpenHolePlate(Part):
         self.create_set()
         
         self.create_partition_hole()
-        
-        self.create_partition_ply()
-        self.loop_over_plies()
-        
+
         if not self.is_only_geometry:
-        
+
             #* Abaqus Module: Mesh
             self.set_seeding()
             self.create_mesh()
             self.set_element_type()
-            
+
             #* Abaqus Module: Property
             self.set_section_assignment()
             self.set_composite_layups()
@@ -351,70 +348,24 @@ class OpenHolePlate(Part):
         myPrt.PartitionCellByPlaneThreePoints(cells=myPrt.sets['partition_square'].cells, 
             point1=(x0, y1, 0.0), point2=(x1, y0, 0.0), point3=(x0, y1, 1.0))
     
-    #* Partition, surface, set for ply-by-ply modeling
-    
-    def create_partition_ply(self):
-        '''
-        Create partition for each ply
-        '''
-        myPrt = self.model.parts[self.name_part]
-        
-        num_ply = self.get_num_ply()
-        
-        z_top = self.length_z
-        z_bottom = 0.0
-        
-        for i in range(num_ply-1):
-            
-            r = (i+1.0)/num_ply
-            z = (1-r)*z_bottom + r*z_top
-            
-            myPrt.PartitionCellByPlaneThreePoints(cells=myPrt.cells, 
-                point1=tuple([0, 0, z]),
-                point2=tuple([1, 0, z]),
-                point3=tuple([0, 1, z]))
-        
-    def loop_over_plies(self):
-        '''
-        Loop over plies: seed edge, and create sets
-        '''
-        myPrt = self.model.parts[self.name_part]
-        
-        #* Ply parameters
-        num_ply = self.get_num_ply()
-        
-        #* Stack direction of plate,
-        #* the reference face is the top surface, the stacking direction is from bottom to top,
-        #* The 1st ply is in the bottom surface (z0)
-        z_top = self.length_z
-        z_bottom = 0.0
-        
-        t0 = time.time()
-        for i_ply in range(num_ply):
-            
-            t1 = time.time()
-            r0 = (i_ply*1.0)/num_ply
-            r1 = (i_ply+1.0)/num_ply
-            z0 = (1-r0)*z_bottom + r0*z_top
-            z1 = (1-r1)*z_bottom + r1*z_top
-
-            self._seed_edge_ply(myPrt, z0, z1)
-            
-            self._create_set_ply(z0, z1, i_ply)
-            
-            t2 = time.time()
-            print('>>> Seeding ply %2d of [%s], t= %.1f s'%(i_ply+1, self.name_part, t2-t1))
-            
-        print('>>> Seeding [%s], t= %.1f min'%(self.name_part, (t2-t0)/60.0))
-
     #* Meshing
     
     def set_seeding(self):
 
         myPrt = self.model.parts[self.name_part]
-        myPrt.seedPart(size=self.pMesh['plate_seedPart_size'], 
+        myPrt.seedPart(size=self.pMesh['plate_seedPart_size'],
                         deviationFactor=0.1, minSizeFactor=0.1)
-        
+
+        edges = self.get_edges(myPrt, (0.0, 0.0, 0.5*self.length_z))
+        myPrt.seedEdgeByNumber(edges=edges,
+                    number=self.pMesh['num_element_thickness'], constraint=FIXED)
+
+        self._seed_edge_face_hole_radial(myPrt, 0.0, reverse=False)
+        self._seed_edge_face_hole_radial(myPrt, self.length_z, reverse=True)
+
+        self._seed_edge_face_circumferential_partition(myPrt, 0.0)
+        self._seed_edge_face_circumferential_partition(myPrt, self.length_z)
+
     def create_mesh(self):
         
         #* Stack direction of plate,
@@ -433,42 +384,25 @@ class OpenHolePlate(Part):
         print('>>> Meshing of [%s], t= %.1f min'%(self.name_part, (t1-t0)/60.0))
 
     def set_element_type(self):
-        
+
         myPrt = self.model.parts[self.name_part]
-        
-        self.set_element_type_of_part(myPrt, kind='3D stress', hourglassControl='enhanced')
-        
+
+        self.set_element_type_of_part(myPrt, kind='continuum shell')
+
     def set_section_assignment(self):
-        
-        #* Stack direction of plate,
-        #* the reference face is the top surface, the stacking direction is from bottom to top,
-        #* The 1st ply is in the bottom surface (z0)
-        #* The top face is the z1 face
 
         myPrt = self.model.parts[self.name_part]
-        
-        myPrt.SectionAssignment(region=myPrt.sets['all'], sectionName='orthotropic', offset=0.0, 
-            offsetType=MIDDLE_SURFACE, offsetField='', thicknessAssignment=FROM_SECTION)
-        
-        num_ply = self.get_num_ply()
 
-        for i_ply in range(num_ply):
-            
-            name_set = 'ply-%d'%(i_ply+1)
-            
-            angle = self.get_angle_ply(i_ply)
-
-            localCsys = self.get_datum_by_name(myPrt, 'csys_plate')
-            
-            myPrt.MaterialOrientation(region=myPrt.sets[name_set], 
-                orientationType=SYSTEM, 
-                axis=AXIS_3,                # Additional Rotation Direction
-                localCsys=localCsys,        # Orientation by a datum CSYS
-                fieldName='', 
-                additionalRotationType=ROTATION_ANGLE, 
-                additionalRotationField='', 
-                angle=angle,                # Additional Rotation angle (degree)
-                stackDirection=STACK_3)     # Stacking Direction (STACK_3: bottom to top)
+        self.set_CompositeLayup_of_set(myPrt,
+                name_set='all',
+                total_thickness=self.length_z,
+                ply_angle=self.pMesh['plate_CompositePly_orientationValue'],
+                eNum_thickness=self.pMesh['num_element_thickness'],
+                symmetric=self.pMesh['plate_CompositeLayup_symmetric'],
+                numIntPoints=self.pMesh['plate_CompositePly_numIntPoints'],
+                layup_orientation_definition='Coordinate system',
+                name_csys_datum='csys_plate',
+                material='orthotropic')
     
     def get_num_ply(self):
         '''
@@ -505,84 +439,6 @@ class OpenHolePlate(Part):
 
         return layup[ii]
     
-    #* Ply-by-ply modeling 
-    
-    def _seed_edge_ply(self, myPrt, z0, z1):
-        '''
-        Seed edges on one face of the ply partition
-        
-        Parameters
-        ------------------
-        myPrt: Abaqus part object
-            part of the plate
-
-        z0, z1: float
-            z coordinates of the ply partition faces
-        '''
-        #* Thickness direction edge (edge_z_x0y1)
-        edges = self.get_edges(myPrt, (0.0, 0.0, 0.5*(z0+z1)))
-        myPrt.seedEdgeByNumber(edges=edges,
-                    number=self.pMesh['num_element_thickness'], constraint=FIXED)
-
-        #* Face edges
-        self._seed_edge_face_hole_radial(myPrt, z0, reverse=False)
-        self._seed_edge_face_circumferential_partition(myPrt, z0)
- 
-        if z1 == self.length_z:
-            
-            self._seed_edge_face_hole_radial(myPrt, z1, reverse=True)
-            self._seed_edge_face_circumferential_partition(myPrt, z1)
-
-    def _create_set_ply(self, z0, z1, i_ply):
-        '''
-        Create set for each ply
-        
-        Parameters
-        ------------------
-        z0, z1: float
-            z coordinates of the ply partition faces
-
-        i_ply: int
-            index of the ply
-        '''
-        z_mid = 0.5*(z0+z1)
-        width = 0.5*self.width_partition
-
-        EPSILON = 0.001
-        ANGLE_INCREMENT= 0.5*np.pi
-
-        #* Cells around the hole
-        dc = 0.5*(self.r_hole + self.r_partition)
-        ds = 0.5*(self.r_partition + self.width_partition*0.5)
-
-        points=[]
-        for i in range (4):
-            
-            angle= ANGLE_INCREMENT * i
-            
-            x = self.xc_hole + dc*np.sin(angle)
-            y = self.yc_hole + dc*np.cos(angle)
-            points.append((x,y,z_mid))
-            
-            x = self.xc_hole + ds*np.sin(angle)
-            y = self.yc_hole + ds*np.cos(angle)
-            points.append((x,y,z_mid))
-            
-        #* Cells of rectangular blocks
-        points += [
-            (self.xc_hole - width - EPSILON,    self.yc_hole - width - EPSILON, z_mid),
-            (self.xc_hole,                      self.yc_hole - width - EPSILON, z_mid),
-            (self.xc_hole + width + EPSILON,    self.yc_hole - width - EPSILON, z_mid),
-            (self.xc_hole - width - EPSILON,    self.yc_hole,                   z_mid),
-            (self.xc_hole + width + EPSILON,    self.yc_hole,                   z_mid),
-            (self.xc_hole - width - EPSILON,    self.yc_hole + width + EPSILON, z_mid),
-            (self.xc_hole,                      self.yc_hole + width + EPSILON, z_mid),
-            (self.xc_hole + width + EPSILON,    self.yc_hole + width + EPSILON, z_mid),
-        ]
-
-        #* Create set
-        self.create_geometry_set('ply-%d'%(i_ply+1), points, geometry='cell')
-
     def _seed_edge_face_hole_radial(self, myPrt, z, reverse=False):
         '''
         Seed the edges around the hole in radial direction in one face.
@@ -961,7 +817,7 @@ class SingleLapBoltedJoint(Model):
         self.model.DisplacementBC(name=self.label_rp, createStepName='Loading', 
             region=a.sets[self.label_rp],
             u1=_d[0], u2=_d[1], u3=_d[2],
-            ur1=0.0, ur2=0.0, ur3=0.0, # Must constrain all DOFs for coupling
+            ur1=0.0, ur2=0.0, ur3=0.0, 
             amplitude=UNSET, fixed=OFF,
             distributionType=UNIFORM, fieldName='', localCsys=None)
         
@@ -996,35 +852,70 @@ class SingleLapBoltedJoint(Model):
             numCpus=self.pRun['numCpus'], numDomains=self.pRun['numCpus'], numGPUs=0)
 
 
-def extract_field(name_job, fname_save='specimen-field-C3D8R.dat'):
+def extract_field_SC8R(name_job, fname_save='specimen-field-SC8R.dat',
+                numIntPoints=3, index_pick_IntPoint=[1]):
+    '''
+    Extract field output at integration points for shell elements.
     
+    Parameters
+    ------------
+    name_job: str
+        name of the job, which is also the name of the odb file.
+    fname_save: str
+        name of the file to save the extracted field output.
+    numIntPoints: int
+        number of integration points in each ply of the continuum shell element.
+    index_pick_IntPoint: list of int
+        indices of the integration points to pick for the output (starts from 0).
+    '''
     N_SET = 2
     NAME_INSTANCES = ['PLATE_0', 'PLATE_1']
     NAME_SETS = ['PARTITION_CIRCLE', 'PARTITION_CIRCLE']
-    
+
     odb = OdbOperation(name_job)
 
     with open(fname_save, 'w') as f:
-        
-        f.write('Variables= X Y Z index S11 S22 S33 S12 S13 S23\n')
-        
+
+        f.write('Variables= X Y Z thickness S11 S22 S33 S12 index index_thickness\n')
+
         for i_set in range(N_SET):
-            
+
             element_labels, indices_fieldOutput = odb.get_element_labels_and_indices(
                 name_instance=NAME_INSTANCES[i_set], name_set=NAME_SETS[i_set])
             coordinates = odb.probe_element_center_coordinate(
                 name_instance=NAME_INSTANCES[i_set], element_label=element_labels)
-            values_S = odb.probe_element_values(variable='S', index_fieldOutput=indices_fieldOutput)
+
+            # ndarray [n_element, n_thickness, 2], axis-2: (thickness_coordinate, value)
+            values_S11 = odb.probe_shell_element_thickness_values(variable='S', component='S11',
+                                name_instance=NAME_INSTANCES[i_set], element_label=element_labels)
+            values_S22 = odb.probe_shell_element_thickness_values(variable='S', component='S22',
+                                name_instance=NAME_INSTANCES[i_set], element_label=element_labels)
+            values_S33 = odb.probe_shell_element_thickness_values(variable='S', component='S33',
+                                name_instance=NAME_INSTANCES[i_set], element_label=element_labels)
+            values_S12 = odb.probe_shell_element_thickness_values(variable='S', component='S12',
+                                name_instance=NAME_INSTANCES[i_set], element_label=element_labels)
+
             n_element = len(indices_fieldOutput)
-            
-            f.write('zone T=" %s %s ", I= %d\n'%(NAME_INSTANCES[i_set], NAME_SETS[i_set], n_element))
+            thickness_distribution = values_S11[0, :, 0]
+            n_thickness = len(thickness_distribution)
+
+            f.write('zone T=" %s %s ", I= %d\n'%(NAME_INSTANCES[i_set], NAME_SETS[i_set], n_element * n_thickness))
             for i in range(n_element):
-                for j in range(3):
-                    f.write(' %14.6E'%(coordinates[i][j]))
-                f.write(' %d'%(indices_fieldOutput[i]))
-                for j in range(6):
-                    f.write(' %14.6E'%(values_S[i][j]))
-                f.write('\n')
+                for k in range(n_thickness):
+                    
+                    if k%numIntPoints not in index_pick_IntPoint:
+                        continue
+                    
+                    for j in range(3):
+                        f.write(' %14.6E'%(coordinates[i][j]))
+                    f.write(' %14.6E'%(thickness_distribution[k]))
+                    f.write(' %14.6E'%(values_S11[i, k, 1]))
+                    f.write(' %14.6E'%(values_S22[i, k, 1]))
+                    f.write(' %14.6E'%(values_S33[i, k, 1]))
+                    f.write(' %14.6E'%(values_S12[i, k, 1]))
+                    f.write(' %d'%(indices_fieldOutput[i]))
+                    f.write(' %d'%(k))
+                    f.write('\n')
             f.write('\n')
 
 
@@ -1075,5 +966,5 @@ if __name__ == '__main__':
             for i in range(3):
                 f.write('%s_U%d   %20.6E \n'%(model.label_rp, i+1, u_RP[i]))
 
-        extract_field(name_job=name_job, fname_save=name_job+'-field.dat')
+        extract_field_SC8R(name_job=name_job, fname_save=name_job+'-field-SC8R.dat')
 
