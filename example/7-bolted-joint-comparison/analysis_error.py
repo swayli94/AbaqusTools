@@ -366,6 +366,7 @@ if __name__ == '__main__':
 
     i_sample = 0
     n_ply, ply_orientations, z_planes = derive_ply_info(pMesh)
+    plate_thickness = n_ply * pMesh['composite_ply_thickness']
 
     r_hole = pGeo['fasteners'][0]['r_hole']
     X_unit, Y_unit = create_unit_template_mesh(r_hole=1.0, r_outer=R_OUTER_RATIO)
@@ -373,22 +374,29 @@ if __name__ == '__main__':
     Y_tmpl = Y_unit * r_hole
 
     print(f'Sample {i_sample}: r_hole={r_hole} mm, '
-          f'n_ply={n_ply}, orientations={ply_orientations}')
+          f'n_ply={n_ply}, '
+          f'plate_thickness={plate_thickness} mm')
 
     i_sample_dict = {src: i_sample for src in SOURCES}
 
-    fields = collect_fields(i_sample_dict, pGeo, n_ply, z_planes, X_tmpl, Y_tmpl,
-                            func_path_data=lambda src: PATH_DATA[src])
-
     sample_label = f'sample{i_sample}'
 
-    records  = compute_sample_metrics(fields)
-    csv_path = save_metrics_csv(records, sample_label)
-    print(f'  Saved {csv_path}')
-
-    plot_scatter_topk(fields, sample_label)
-    plot_slope_errorbars(records, sample_label)
-
+    # RF loads are fastener-level quantities — independent of which plate
     rf_loads = collect_rf_loads(i_sample_dict,
                                 func_path_data=lambda src: PATH_DATA[src])
     plot_rf_comparison(rf_loads, sample_label)
+
+    for plate_idx in range(2):
+        print(f'--- Plate {plate_idx} ---')
+        fields = collect_fields(i_sample_dict, pGeo, n_ply, z_planes, X_tmpl, Y_tmpl,
+                                func_path_data=lambda src: PATH_DATA[src],
+                                plate_idx=plate_idx,
+                                plate_thickness=plate_thickness)
+
+        plate_label = f'sample{i_sample}_plate{plate_idx}'
+
+        records  = compute_sample_metrics(fields)
+        csv_path = save_metrics_csv(records, plate_label)
+
+        plot_scatter_topk(fields, plate_label)
+        plot_slope_errorbars(records, plate_label)

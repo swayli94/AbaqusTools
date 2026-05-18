@@ -19,7 +19,7 @@ DISPLACEMENT = [[0.01, 0.0, 0.0],
 NAME_INSTANCES = ['PLATE_0', 'PLATE_1']
 NAME_SET = 'PARTITION_SQUARE'
 
-use_implicit_modelling = True
+use_implicit_modelling = False
 
 
 if __name__ == '__main__':
@@ -75,8 +75,6 @@ if __name__ == '__main__':
         angle_degree = np.rad2deg(np.arctan2(ctf_y, ctf_x))
         
         summary[i_case] = {
-            'bearing_force': bearing_force,
-            'angle_degree': angle_degree,
             'ctf_x': ctf_x,
             'ctf_y': ctf_y,
             'ctf_z': ctf_z,
@@ -85,16 +83,28 @@ if __name__ == '__main__':
         #* Load mid-plane data for partition square
         zones = read_tecplot(fname_midplane)
         for i_zone, zone in enumerate(zones):
+            
+            if i_zone == 0:
+                # Lower plate: angle as measured
+                actual_angle = angle_degree
+            elif i_zone == 1:
+                # Upper plate: angle offset by 180 degree
+                # to reflect the opposite direction of load
+                actual_angle = angle_degree - 180.0
+            else:
+                raise ValueError(f'Unexpected zone index: {i_zone}')
    
             #* Calculate bypass load
             results = calculate_bypass_load(
                 X=zone['X'], Y=zone['Y'],
                 N11=zone['N11'], N22=zone['N22'], N12=zone['N12'],
                 bearing_force=bearing_force,
-                angle_degree=angle_degree
+                angle_degree=actual_angle
             )
             
             summary[i_case]['zone_%d'%i_zone] = {
+                'bearing_force': bearing_force,
+                'angle_degree': actual_angle,
                 'N_x_bypass': results['N_x_bypass'],
                 'N_y_bypass': results['N_y_bypass'],
                 'N_xy_bypass': results['N_xy_bypass'],
@@ -109,7 +119,7 @@ if __name__ == '__main__':
                 N22=results['N_y_bypass'],
                 N12=results['N_xy_bypass'],
                 bearing_load=bearing_force,
-                angle_load_degree=angle_degree,
+                angle_load_degree=actual_angle,
                 characteristic_distance=characteristic_distance,
                 n_points_radial=32,
                 n_points_angular=64,

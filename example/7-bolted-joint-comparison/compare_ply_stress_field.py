@@ -93,61 +93,71 @@ def _parse_dat_rows(fname: str, n_col: int) -> list:
     return rows
 
 def load_field_data(z_planes: List[float], i_sample: int, i_case: int,
-                    source: str, path_data: str) -> Dict[float, np.ndarray]:
+                    source: str, path_data: str,
+                    plate_idx: int = 0,
+                    plate_thickness: float = 5.0) -> Dict[float, np.ndarray]:
     '''
-    Load ply-level stress data for one (sample, case, source).
+    Load ply-level stress data for one (sample, case, source, plate).
+
+    Parameters
+    ----------
+    plate_idx       : 0 = PLATE_0 (bottom), 1 = PLATE_1 (top)
+    plate_thickness : total thickness of one plate (mm), used to split FEM data
 
     File formats
     ------------
     fem_C3D8R: Job_BJ_{s}_{c}-field.dat
         Variables= X Y Z index S11 S22 S33 S12 S13 S23
-        PLATE_0 has Z ∈ [0, 5) mm — the comparison plate.
+        PLATE_0: Z ∈ [0, plate_thickness); PLATE_1: Z ∈ [plate_thickness, 2*plate_thickness)
 
     fem_SC8R: Job_BJ_{s}_{c}-field-SC8R.dat
         Variables= X Y Z thickness S11 S22 S33 S12 index index_thickness
-        PLATE_0 has Z ≈ 2.5 mm (element centroid); "thickness" is the
-        ply mid-plane z-coordinate used as the z-plane identifier.
+        Z (col 2) is the element centroid — used to identify the plate.
+        "thickness" (col 3) is the ply mid-plane z used as the z-plane identifier.
 
-    mif_S4R, mif_S4R_IM: Job_MIF_{s}_{c}-stress-field-{0,1}.dat  (two mesh zones)
+    mif_S4R, mif_S4R_IM: Job_MIF_{s}_{c}-stress-field-{plate_idx}.dat
         Variables= X Y Z S11 S22 S12
-        Coordinates are already hole-centred.
+        Coordinates are already hole-centred; one file per plate.
 
     Returns
     -------
     Dict mapping ply z-plane (mm) → array of shape (n_pts, 6):
-        [x, y, z_ply, S11, S22, S12]
+        [x, y, z_ply_local, S11, S22, S12]
+    z_ply_local is normalized to [0, plate_thickness) for all sources.
     For fem_C3D8R / fem_SC8R, x and y are in the global FEA frame.
     For mif_S4R and mif_S4R_IM, x and y are already hole-centred.
     '''
+    z_lo = plate_idx * plate_thickness
+    z_hi = (plate_idx + 1) * plate_thickness
+
     if source == 'fem_C3D8R':
         # Variables= X Y Z index S11 S22 S33 S12 S13 S23
         fname = os.path.join(path_data, f'Job_BJ_{i_sample}_{i_case}-field.dat')
         rows  = _parse_dat_rows(fname, n_col=10)
         arr   = np.array(rows)
-        arr   = arr[arr[:, 2] < 5.0]               # keep PLATE_0
-        arr   = arr[:, [0, 1, 2, 4, 5, 7]]         # X Y Z S11 S22 S12
+        arr   = arr[(arr[:, 2] >= z_lo) & (arr[:, 2] < z_hi)]  # keep plate
+        arr   = arr[:, [0, 1, 2, 4, 5, 7]]                     # X Y Z S11 S22 S12
+        arr[:, 2] -= z_lo                                       # normalize to local z
 
     elif source == 'fem_SC8R':
         # Variables= X Y Z thickness S11 S22 S33 S12 index index_thickness
         fname = os.path.join(path_data, f'Job_BJ_{i_sample}_{i_case}-field-SC8R.dat')
         rows  = _parse_dat_rows(fname, n_col=10)
         arr   = np.array(rows)
-        arr   = arr[np.abs(arr[:, 2] - 2.5) < 1.0] # keep PLATE_0 (Z ≈ 2.5 mm)
-        arr   = arr[:, [0, 1, 3, 4, 5, 7]]          # X Y thickness S11 S22 S12
+        arr   = arr[(arr[:, 2] >= z_lo) & (arr[:, 2] < z_hi)]  # filter by element Z
+        arr   = arr[:, [0, 1, 3, 4, 5, 7]]                     # X Y thickness S11 S22 S12
+        # thickness is already local to each plate — no z offset needed
 
     elif source in ['mif_S4R', 'mif_S4R_IM']:
-        # Variables= X Y Z S11 S22 S12  (two zone files, already hole-centred)
-        parts = []
-        for idx in range(2):
-            fname = os.path.join(path_data,
-                                 f'Job_MIF_{i_sample}_{i_case}-stress-field-{idx}.dat')
-            if os.path.exists(fname):
-                rows = _parse_dat_rows(fname, n_col=6)
-                parts.append(np.array(rows))
-        if not parts:
+        # Variables= X Y Z S11 S22 S12  (one file per plate, already hole-centred)
+        fname = os.path.join(path_data,
+                             f'Job_MIF_{i_sample}_{i_case}-stress-field-{plate_idx}.dat')
+        if not os.path.exists(fname):
             raise FileNotFoundError(
-                f'No mif_S4R stress-field files for sample {i_sample} case {i_case}')
-        arr = np.vstack(parts)    # X Y Z S11 S22 S12
+                f'No mif_S4R stress-field file for sample {i_sample} '
+                f'case {i_case} plate {plate_idx}')
+        rows = _parse_dat_rows(fname, n_col=6)
+        arr  = np.array(rows)    # X Y Z S11 S22 S12
 
     else:
         raise ValueError(f'Unknown source: {source}')
@@ -188,9 +198,16 @@ def derive_ply_info(pMesh: dict) -> tuple:
 def collect_fields(i_sample_dict: Dict[str, int],
                    pGeo: dict, n_ply: int, z_planes: list,
                    X_tmpl: np.ndarray, Y_tmpl: np.ndarray,
-                   func_path_data: Callable[[str], str]) -> np.ndarray:
+                   func_path_data: Callable[[str], str],
+                   plate_idx: int = 0,
+                   plate_thickness: float = 5.0) -> np.ndarray:
     '''
     Load and interpolate stress fields for all cases, sources, and plies.
+
+    Parameters
+    ----------
+    plate_idx       : which plate to load (0 or 1)
+    plate_thickness : total thickness of one plate (mm)
 
     Returns
     -------
@@ -208,7 +225,9 @@ def collect_fields(i_sample_dict: Dict[str, int],
                 fd = load_field_data(z_planes,
                                      i_sample=i_sample_dict[src],
                                      i_case=i_case, source=src,
-                                     path_data=func_path_data(src))
+                                     path_data=func_path_data(src),
+                                     plate_idx=plate_idx,
+                                     plate_thickness=plate_thickness)
             except Exception as e:
                 print(f'  Warning [{src} s{i_sample_dict[src]} c{i_case}]: {e}')
                 continue
@@ -317,6 +336,7 @@ if __name__ == '__main__':
 
     i_sample = 0
     n_ply, ply_orientations, z_planes = derive_ply_info(pMesh)
+    plate_thickness = n_ply * pMesh['composite_ply_thickness']
 
     r_hole = pGeo['fasteners'][0]['r_hole']
     X_unit, Y_unit = create_unit_template_mesh(r_hole=1.0, r_outer=R_OUTER_RATIO)
@@ -324,13 +344,16 @@ if __name__ == '__main__':
     Y_tmpl = Y_unit * r_hole
 
     print(f'Sample {i_sample}: r_hole={r_hole} mm, '
-          f'n_ply={n_ply}, orientations={ply_orientations}')
+          f'n_ply={n_ply}, '
+          f'plate_thickness={plate_thickness} mm')
 
     i_sample_dict = {src: i_sample for src in SOURCES}
 
-    fields = collect_fields(i_sample_dict, pGeo, n_ply, z_planes, X_tmpl, Y_tmpl,
-                            func_path_data=lambda src: PATH_DATA[src])
-
-    sample_label = f'sample{i_sample}'
-    plot_component_figures(fields, X_tmpl, Y_tmpl, path_figure, sample_label,
-                           ply_orientations)
+    for plate_idx in range(2):
+        fields = collect_fields(i_sample_dict, pGeo, n_ply, z_planes, X_tmpl, Y_tmpl,
+                                func_path_data=lambda src: PATH_DATA[src],
+                                plate_idx=plate_idx,
+                                plate_thickness=plate_thickness)
+        sample_label = f'sample{i_sample}_plate{plate_idx}'
+        plot_component_figures(fields, X_tmpl, Y_tmpl, path_figure, sample_label,
+                               ply_orientations)

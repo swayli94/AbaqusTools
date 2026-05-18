@@ -419,6 +419,7 @@ class SingleLapBoltedJoint(Model):
         '''
         a = self.rootAssembly
         r_washer = self.pGeo['fasteners'][0]['r_washer']
+        r_hole = self.pGeo['fasteners'][0]['r_hole']
 
         self.model.ConnectorSection(name='ConnSect-0', assembledType=BEAM)
 
@@ -433,7 +434,7 @@ class SingleLapBoltedJoint(Model):
             directionVector=((0.0, 0.0, 0.0), (0.0, 0.0, 1.0)),
             maximumLayers=len(targetSurfaces), 
             weightingMethod=LINEAR,
-            physicalRadius=r_washer,
+            physicalRadius=r_hole,
             sectionName='ConnSect-0',
             connectionType=CONNECTOR, 
             unsorted=OFF)
