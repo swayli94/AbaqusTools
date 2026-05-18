@@ -126,7 +126,7 @@ def plot_rf_comparison(rf_loads: np.ndarray, label: str):
         if i_rf == N_RF - 1:
             ax.legend(fontsize=7)
 
-    fig.suptitle(f'Fastener reaction forces RF_load  |  {label}', fontsize=10)
+    fig.suptitle(f'Reaction forces RF_load  |  {label}', fontsize=10)
     plt.tight_layout()
     fname = os.path.join(path_out, f'{label}_rf_comparison.png')
     fig.savefig(fname, dpi=DPI, bbox_inches='tight')
@@ -348,12 +348,14 @@ def plot_slope_errorbars(records: list, label: str, k: float = TOP_K):
 if __name__ == '__main__':
 
     path_example = os.path.dirname(path)
+    path_root = os.path.dirname(path_example)
 
     PATH_DATA = {
         'fem_C3D8R':  os.path.join(path_example, '7-bolted-joint-specimen-C3D8R', 'data'),
         'fem_SC8R':   os.path.join(path_example, '7-bolted-joint-specimen-SC8R',  'data'),
         'mif_S4R':    os.path.join(path_example, '7-mesh-independent-fastener-S4R', 'data', 'no-IM'),
         'mif_S4R_IM': os.path.join(path_example, '7-mesh-independent-fastener-S4R', 'data', 'with-IM'),
+        # 'mif_S4R_IM': os.path.join(path_root, 'temp-MIF-S4R'),
     }
 
     fname_params = os.path.join(PATH_DATA['fem_C3D8R'], '..', 'default-parameters.json')

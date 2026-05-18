@@ -285,12 +285,12 @@ class OpenHoleElement(object):
         which is not accurate but can be used as a first approximation.
         '''
 
-        self.E11 = self._get_e11()
-        self.E22 = self._get_e22()
-        self.E33 = self._get_e33()
-        self.G12 = self._get_g12()
-        self.G13 = self._get_g13()
-        self.G23 = self._get_g23()
+        self.E11 = self._get_e11() # * (1 + self.vf_hole*3)
+        self.E22 = self._get_e22() # * (1 + self.vf_hole*3)
+        self.E33 = self._get_e33() # * (1 + self.vf_hole*3)
+        self.G12 = self._get_g12() # * (1 + self.vf_hole*10)
+        self.G13 = self._get_g13() # * (1 + self.vf_hole*10)
+        self.G23 = self._get_g23() # * (1 + self.vf_hole*10)
         self.nu12 = self._get_nu12()
         self.nu13 = self._get_nu13()
         self.nu23 = self._get_nu23()

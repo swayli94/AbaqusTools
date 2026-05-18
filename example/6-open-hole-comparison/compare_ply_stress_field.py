@@ -354,11 +354,13 @@ def plot_ratio_figures(fields: np.ndarray, X: np.ndarray, Y: np.ndarray,
 if __name__ == '__main__':
 
     path_example = os.path.dirname(path)
+    path_root = os.path.dirname(path_example)
 
     PATH_DATA = {
         'fem_C3D8R': os.path.join(path_example, '6-open-hole-specimen-C3D8R', 'data'),
         'fem_S4R':   os.path.join(path_example, '6-open-hole-specimen-S4R',   'data'),
         'im_S4R':    os.path.join(path_example, '6-open-hole-implicit-modelling-S4R', 'data'),
+        # 'im_S4R':    os.path.join(path_root, 'temp-MIF-S4R'),
     }
 
     fname_params = os.path.join(PATH_DATA['fem_C3D8R'], '..', 'default-parameters.json')
@@ -386,6 +388,6 @@ if __name__ == '__main__':
     sample_label = f'sample{i_sample}'
     plot_component_figures(fields, X_tmpl, Y_tmpl, path_figure, sample_label,
                            ply_orientations)
-    plot_envelope_figure(fields, X_tmpl, Y_tmpl, path_figure, sample_label)
-    plot_ratio_figures(fields, X_tmpl, Y_tmpl, path_figure, sample_label,
-                       ply_orientations)
+    # plot_envelope_figure(fields, X_tmpl, Y_tmpl, path_figure, sample_label)
+    # plot_ratio_figures(fields, X_tmpl, Y_tmpl, path_figure, sample_label,
+    #                    ply_orientations)

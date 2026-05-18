@@ -48,6 +48,74 @@ os.makedirs(path_out, exist_ok=True)
 DPI   = 150
 TOP_K = 5.0   # percentage of top-stress elements used for dangerous-zone slope
 
+def load_rp11_rf(i_sample: int, i_case: int, source: str, path_data: str) -> float:
+    '''
+    Parse Job_OHP_{i_sample}_{i_case}-RF.dat and return RP_11_RF.
+    Returns nan if the file is missing or the key is absent.
+    '''
+    fname = os.path.join(path_data, f'Job_OHP_{i_sample}_{i_case}-RF.dat')
+    if not os.path.exists(fname):
+        print(f'  Warning: {fname} not found')
+        return np.nan
+    with open(fname) as f:
+        for line in f:
+            parts = line.split()
+            if len(parts) == 2 and parts[0] == 'RP_11_RF':
+                try:
+                    return float(parts[1])
+                except ValueError:
+                    pass
+    return np.nan
+
+
+def collect_rp11_rf(i_sample_dict: dict, func_path_data) -> np.ndarray:
+    '''
+    Load RP_11_RF for all (case x source) combinations.
+
+    Returns
+    -------
+    np.ndarray, shape (N_CASE, N_SRC)
+    '''
+    out = np.full((N_CASE, N_SRC), np.nan)
+    for i_case in range(N_CASE):
+        for i_src, src in enumerate(SOURCES):
+            out[i_case, i_src] = load_rp11_rf(
+                i_sample=i_sample_dict[src],
+                i_case=i_case,
+                source=src,
+                path_data=func_path_data(src),
+            )
+    return out
+
+
+def plot_rf_comparison(rp11_rf: np.ndarray, label: str):
+    '''
+    Grouped bar chart: RP_11_RF across sources and cases.
+    '''
+    x     = np.arange(N_CASE)
+    width = 0.8 / N_SRC
+
+    fig, ax = plt.subplots(figsize=(N_CASE * 1.8 + 1.5, 3.5))
+
+    for i_src, src_label in enumerate(SOURCE_LABELS):
+        vals   = rp11_rf[:, i_src]
+        offset = (i_src - (N_SRC - 1) / 2.0) * width
+        ax.bar(x + offset, vals, width=width * 0.92, label=src_label, zorder=2)
+
+    ax.axhline(0.0, color='dimgray', ls='--', lw=0.8)
+    ax.set_xticks(x)
+    ax.set_xticklabels(CASE_LABELS, fontsize=8)
+    ax.set_ylabel('RP_11_RF (N)', fontsize=8)
+    ax.grid(axis='y', lw=0.4, alpha=0.5, zorder=0)
+    ax.legend(fontsize=7)
+
+    fig.suptitle(f'Reaction force RP_11_RF  |  {label}', fontsize=10)
+    plt.tight_layout()
+    fname = os.path.join(path_out, f'{label}_rf_comparison.png')
+    fig.savefig(fname, dpi=DPI, bbox_inches='tight')
+    plt.close(fig)
+    print(f'  Saved {fname}')
+
 
 def fit_slope_through_origin(x: np.ndarray, y: np.ndarray) -> tuple:
     '''
@@ -257,11 +325,13 @@ def plot_slope_errorbars(records: list, label: str, k: float = TOP_K):
 if __name__ == '__main__':
 
     path_example = os.path.dirname(path)
+    path_root = os.path.dirname(path_example)
 
     PATH_DATA = {
         'fem_C3D8R': os.path.join(path_example, '6-open-hole-specimen-C3D8R', 'data'),
         'fem_S4R':   os.path.join(path_example, '6-open-hole-specimen-S4R',   'data'),
         'im_S4R':    os.path.join(path_example, '6-open-hole-implicit-modelling-S4R', 'data'),
+        # 'im_S4R':    os.path.join(path_root, 'temp-MIF-S4R'),
     }
 
     fname_params = os.path.join(PATH_DATA['fem_C3D8R'], '..', 'default-parameters.json')
@@ -294,3 +364,7 @@ if __name__ == '__main__':
 
     plot_scatter_topk(fields, sample_label)
     plot_slope_errorbars(records, sample_label)
+
+    rp11_rf = collect_rp11_rf(i_sample_dict,
+                              func_path_data=lambda src: PATH_DATA[src])
+    plot_rf_comparison(rp11_rf, sample_label)

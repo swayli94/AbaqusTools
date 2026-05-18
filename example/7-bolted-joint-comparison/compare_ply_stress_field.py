@@ -296,12 +296,14 @@ def plot_component_figures(fields: np.ndarray, X: np.ndarray, Y: np.ndarray,
 if __name__ == '__main__':
 
     path_example = os.path.dirname(path)
+    path_root = os.path.dirname(path_example)
 
     PATH_DATA = {
         'fem_C3D8R':  os.path.join(path_example, '7-bolted-joint-specimen-C3D8R', 'data'),
         'fem_SC8R':   os.path.join(path_example, '7-bolted-joint-specimen-SC8R',  'data'),
         'mif_S4R':    os.path.join(path_example, '7-mesh-independent-fastener-S4R', 'data', 'no-IM'),
         'mif_S4R_IM': os.path.join(path_example, '7-mesh-independent-fastener-S4R', 'data', 'with-IM'),
+        # 'mif_S4R_IM': os.path.join(path_root, 'temp-MIF-S4R'),
     }
 
     path_figure = os.path.join(path, 'field-figure')
