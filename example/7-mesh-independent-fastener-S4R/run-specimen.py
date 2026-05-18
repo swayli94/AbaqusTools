@@ -19,6 +19,8 @@ DISPLACEMENT = [[0.01, 0.0, 0.0],
 NAME_INSTANCES = ['PLATE_0', 'PLATE_1']
 NAME_SET = 'PARTITION_SQUARE'
 
+use_implicit_modelling = True
+
 
 if __name__ == '__main__':
     
@@ -30,10 +32,7 @@ if __name__ == '__main__':
         default_parameters = json.load(f)
     
     index_run = default_parameters['index_run']
-    if 'target_volume_fraction' in default_parameters:
-        target_volume_fraction=default_parameters['target_volume_fraction']
-    else:
-        target_volume_fraction=0.4
+    target_volume_fraction = default_parameters.get('target_volume_fraction', 0.3)
 
     summary = {}
 
@@ -45,7 +44,7 @@ if __name__ == '__main__':
         default_parameters['index_case'] = i_case
         default_parameters['displacement'] = DISPLACEMENT[i_case]
         update_parameters(default_parameters, target_volume_fraction,
-                        use_implicit_modelling=False)
+                        use_implicit_modelling=use_implicit_modelling)
         with open('parameters.json', 'w') as f:
             json.dump(default_parameters, f, indent=4)
                     

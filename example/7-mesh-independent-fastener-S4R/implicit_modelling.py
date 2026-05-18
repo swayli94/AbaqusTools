@@ -17,6 +17,10 @@ def calculate_partition_dimensions(len_x, len_y, r_hole,
     dy0 = yc_hole - r_hole
     dy1 = len_y - yc_hole - r_hole
     
+    if dx0 <= 0 or dx1 <= 0 or dy0 <= 0 or dy1 <= 0:
+        print('dx0 = %.2f, dx1 = %.2f, dy0 = %.2f, dy1 = %.2f' % (dx0, dx1, dy0, dy1))
+        raise ValueError('Hole is out of bounds of the plate. Please check the geometry parameters.')
+    
     # volume_fraction = np.pi*r_hole**2 / width_partition**2
     width_partition = np.sqrt(np.pi*r_hole**2 / target_volume_fraction)
         
@@ -316,17 +320,16 @@ def update_parameters(parameters: dict, target_volume_fraction: float=0.4,
     
     Note: only one fastener in the specimen.
     '''
+    len_x = parameters['pGeo']['len_x_plate']
     len_y = parameters['pGeo']['len_y_plate']
     
     pFastener = parameters['pGeo']['fasteners'][0]
     r_hole = pFastener['r_hole']
     xc_hole = pFastener['x_center']
     yc_hole = pFastener['y_center']
-    
-    len_overlap = 2.0 * r_hole
-    
+
     width_partition, vf_hole = calculate_partition_dimensions(
-        len_overlap, len_y, r_hole, xc_hole, yc_hole, 
+        len_x, len_y, r_hole, xc_hole, yc_hole, 
         target_volume_fraction=target_volume_fraction
     )
     
