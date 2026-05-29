@@ -387,7 +387,19 @@ class OpenHolePlate(Part):
 
         myPrt = self.model.parts[self.name_part]
 
+        '''
+        SC8R: continuum shell element
+        '''
         self.set_element_type_of_part(myPrt, kind='continuum shell')
+
+        '''
+        CSS8: continuum solid shell element
+        '''
+        # elemType1 = mesh.ElemType(elemCode=CSS8, elemLibrary=STANDARD)
+        # elemType2 = mesh.ElemType(elemCode=UNKNOWN_WEDGE, elemLibrary=STANDARD)
+        # elemType3 = mesh.ElemType(elemCode=UNKNOWN_TET, elemLibrary=STANDARD)
+        # myPrt.setElementType(regions=(myPrt.cells,),
+        #         elemTypes=(elemType1, elemType2, elemType3))
 
     def set_section_assignment(self):
 

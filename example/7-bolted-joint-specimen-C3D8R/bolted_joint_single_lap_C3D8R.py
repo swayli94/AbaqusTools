@@ -436,7 +436,20 @@ class OpenHolePlate(Part):
         
         myPrt = self.model.parts[self.name_part]
         
+        '''
+        C3D8R
+        '''
         self.set_element_type_of_part(myPrt, kind='3D stress', hourglassControl='enhanced')
+        
+        '''
+        C3D20
+        '''
+        # elemType1 = mesh.ElemType(elemCode=C3D20, elemLibrary=STANDARD)
+        # elemType2 = mesh.ElemType(elemCode=C3D15, elemLibrary=STANDARD)
+        # elemType3 = mesh.ElemType(elemCode=C3D10, elemLibrary=STANDARD, 
+        #     secondOrderAccuracy=OFF, distortionControl=DEFAULT)
+        # myPrt.setElementType(regions=(myPrt.cells,), 
+        #         elemTypes=(elemType1, elemType2, elemType3))
         
     def set_section_assignment(self):
         
