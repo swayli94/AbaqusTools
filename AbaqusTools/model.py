@@ -653,8 +653,6 @@ class Model(object):
         if not str(self.pMesh.get('failure_model', 'none')).lower()=="larc05":
             return
 
-        N_SKIP_LINE_IM78551 = 3
-        
         if method == 'UMAT':
         
             PROPERTY_TABLE_IM78551 = [
@@ -706,35 +704,42 @@ class Model(object):
             lines = f.readlines()
 
         with open(fname_input, 'w') as f:
-            
-            overwrite = False
-            counter = 0
-            
+
+            skipping_material = False
+
             for i_line in range(len(lines)):
-                
+
                 line = lines[i_line].split()
-                
+
                 if len(line)>=2:
                     if line[0]=='*Material,' and line[1]=='name=IM7/8551-7':
-                        
+
                         print('>>> --------------------')
                         print('    [%s] Found MATERIALS (IM7/8551-7) in %s'%(method, fname_input))
                         print('    Overwrite the "PROPERTY TABLE"')
                         print('>>>')
-                        
+
                         for i in range(len(PROPERTY_TABLE_IM78551)):
                             f.write(PROPERTY_TABLE_IM78551[i] + '\n')
-                        
-                        overwrite = True
-                    
-                if overwrite and counter < N_SKIP_LINE_IM78551:
 
-                    counter += 1
-                    continue
-                    
-                else:
-                    
-                    f.write(lines[i_line])
+                        skipping_material = True
+                        continue
+
+                if skipping_material:
+                    #* Skip the remainder of the original material definition,
+                    #* i.e., its option keywords (*ELASTIC, *DENSITY, ...) and
+                    #* their data lines, however many lines they span.  The
+                    #* first keyword that is not a material option (or a
+                    #* comment line) ends the block and is kept.
+                    MATERIAL_OPTIONS = ('*ELASTIC', '*DENSITY')
+                    stripped = lines[i_line].lstrip()
+                    keyword = stripped.split(',')[0].strip().upper()
+                    if stripped.startswith('*') and keyword not in MATERIAL_OPTIONS:
+                        skipping_material = False
+                    else:
+                        continue
+
+                f.write(lines[i_line])
 
     #* =============================================
     #* Abaqus Step functions

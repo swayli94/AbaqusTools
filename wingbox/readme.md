@@ -65,8 +65,10 @@ analysis needs.  For every element it takes `max(|value|)` over all section
 points of each failure index, i.e., the through-thickness envelope, and writes
 
 - `<job>_failure_envelope.npz` — element labels and envelope per instance,
-- `<job>_failure_summary.json` — global/per-instance maxima and the buckling
-  eigenvalues read from `<job>.dat`,
+- `<job>_failure_summary.json` — global/per-instance maxima, the buckling
+  eigenvalues read from `<job>.dat`, and `tip_displacement`, the maximum
+  displacement magnitude of the wing tip nodes (largest z coordinate) in the
+  loaded state,
 - `<job>_slim.odb` — the mesh, the first buckling mode shape, the deformed
   shape of the static step, and the envelope as `<VARIABLE>_MAX` element
   fields.

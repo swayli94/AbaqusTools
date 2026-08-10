@@ -216,6 +216,71 @@ def read_eigenvalues(fname_dat):
     return eigenvalues
 
 
+def compute_tip_displacement(odb, frame, tolerance=1.0):
+    '''
+    Maximum displacement magnitude at the wing tip.
+
+    The wing spans in the global z direction, so the tip is the set of nodes
+    with the largest z coordinate (within `tolerance` mm).  The displacement
+    of those nodes is taken from the last frame of the static step.
+
+    Returns
+    ----------------
+    result: dict, None
+        `max_magnitude`, `node`, `instance`, `z_tip`, and the displacement
+        components of the critical node; None when no U field is available.
+    '''
+    if frame is None:
+        return None
+
+    field_data = get_nodal_field(frame, 'U')
+    if not field_data:
+        return None
+
+    # z coordinate of every node that carries a displacement value
+    z_max = None
+    coordinates = {}
+    for name_instance in field_data:
+        if name_instance not in odb.rootAssembly.instances.keys():
+            continue
+        instance = odb.rootAssembly.instances[name_instance]
+        coords = {}
+        for node in instance.nodes:
+            coords[int(node.label)] = float(node.coordinates[2])
+        coordinates[name_instance] = coords
+        if coords:
+            local_max = max(coords.values())
+            if z_max is None or local_max > z_max:
+                z_max = local_max
+
+    if z_max is None:
+        return None
+
+    result = None
+    for name_instance, (labels, data) in field_data.items():
+        if name_instance not in coordinates:
+            continue
+        coords = coordinates[name_instance]
+        z = np.array([coords.get(int(label), np.nan) for label in labels],
+                     dtype=np.float64)
+        is_tip = z >= z_max - tolerance
+        if not np.any(is_tip):
+            continue
+        magnitude = np.sqrt((data[is_tip]**2).sum(axis=1))
+        index = int(np.argmax(magnitude))
+        candidate = {
+            'max_magnitude': float(magnitude[index]),
+            'node': int(labels[is_tip][index]),
+            'instance': str(name_instance),
+            'z_tip': float(z_max),
+            'U': [float(x) for x in data[is_tip][index]],
+        }
+        if result is None or candidate['max_magnitude'] > result['max_magnitude']:
+            result = candidate
+
+    return result
+
+
 def get_nodal_field(frame, name='U'):
     '''
     Get nodal field data as {instance name: (labels [n], data [n,ncomp])}.
@@ -422,6 +487,13 @@ def main(argv):
     if summary['eigenvalues']:
         print('    buckling eigenvalues = %s'
               % [round(item['eigenvalue'], 6) for item in summary['eigenvalues']])
+
+    #* Maximum displacement of the wing tip nodes in the loaded state.
+    tip = compute_tip_displacement(odb, frame_static)
+    summary['tip_displacement'] = tip
+    if tip is not None:
+        print('    tip displacement   = %.6g mm (node %d of %s, z = %.1f mm)'
+              % (tip['max_magnitude'], tip['node'], tip['instance'], tip['z_tip']))
 
     fname_npz = '%s_failure_envelope.npz' % name_job
     fname_json = '%s_failure_summary.json' % name_job

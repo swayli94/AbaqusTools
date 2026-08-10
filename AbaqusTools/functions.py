@@ -651,7 +651,9 @@ def clean_temporary_files(name_rpy=None):
         os.system('rm -f *.pyc')
         os.system('rm -f *.rec')
         os.system('rm -f *.cax')
-        os.system('rm -f *.env')
+        #* The job scratch `*.env` files are temporary, but `abaqus_v6.env`
+        #* holds the local compiler override and must survive the cleanup.
+        os.system("find . -maxdepth 1 -name '*.env' ! -name 'abaqus_v6.env' -delete")
         os.system('rm -f *.mdl')
         os.system('rm -f *.sim')
         os.system('rm -f *.stt')

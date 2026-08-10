@@ -76,8 +76,12 @@ if __name__ == '__main__':
     if get_failure_model(parameters['pMesh']) == 'larc05':
         # The LaRC05 deck is patched after the model is built, so the job is
         # submitted here instead of from inside Abaqus/CAE.
+        # standard_parallel=solver keeps the element loop serial: the LaRC05
+        # user subroutine is not thread-safe (module-level state), while the
+        # linear solver still uses all cpus.
         print('>>> Running job with LaRC05 failure model...')
-        command = ('abaqus interactive job=%s user=uvarm.f90 cpus=%d'
+        command = ('abaqus interactive job=%s user=uvarm.f90 cpus=%d '
+                   'standard_parallel=solver'
                    % (name_job, parameters['pRun']['numCpus']))
         status = os.system(command)
         clean_temporary_files()
