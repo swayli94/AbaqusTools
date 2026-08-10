@@ -8,7 +8,7 @@ backup/
 build/
 data/
 figure/
-LaRC05/
+# LaRC05/ is tracked: the user subroutines are needed to reproduce "failure_model": "LaRC05"
 temp*
 
 error-analysis*
