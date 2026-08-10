@@ -11,6 +11,7 @@ from AbaqusTools import Model, IS_ABAQUS
 from lofting_part import LoftingPart
 from rib_part import RibPart
 from rib_part import use_rib_face_tie_for_internal_spars
+from params import get_parameter_file, load_parameters, get_failure_model
 
 if IS_ABAQUS:
     from abaqus import mdb
@@ -18,28 +19,6 @@ if IS_ABAQUS:
 
 
 ALUMINUM_RIB_TYPES = ('aluminum', 'aluminium', 'aluminum_alloy', 'aluminium_alloy')
-
-
-def get_parameter_file(argv):
-    '''
-    Get parameter JSON path from command-line arguments.
-
-    Default:
-        default-parameters.json
-
-    Optional:
-        --params path/to/parameters.json
-    '''
-    if '--' in argv:
-        argv = argv[argv.index('--') + 1:]
-
-    if '--params' in argv:
-        index = argv.index('--params')
-        if index + 1 >= len(argv):
-            raise ValueError('Missing value after --params.')
-        return argv[index + 1]
-
-    return 'default-parameters.json'
 
 
 class WingboxModel(Model):
@@ -51,7 +30,11 @@ class WingboxModel(Model):
         self.name_job = name_job
 
     def _get_analysis_type(self):
-        return self.pRun.get('analysis_type', 'static')
+        '''
+        'static', 'buckle', or 'static_buckle', i.e., whether a general static
+        step and/or a linear perturbation buckling step is solved.
+        '''
+        return str(self.pRun.get('analysis_type', 'static')).strip().lower()
 
     def _get_static_step_name(self):
         if self._get_analysis_type() == 'static_buckle':
@@ -124,17 +107,74 @@ class WingboxModel(Model):
 
         return tuple(names)
 
+    def _get_failure_output_variables(self):
+        '''
+        Field output variables carrying the failure indices of the current
+        failure model.  They are evaluated at every section point of the layup,
+        and are reduced to one value per element by `postprocess_failure.py`.
+
+        Failure analysis is optional: `pMesh['failure_model']` can be absent,
+        null or 'none', and then no failure index is requested at all.
+        '''
+        failure_model = get_failure_model(self.pMesh)
+        if failure_model == 'hashin':
+            return ('DMICRT', 'HSNFTCRT', 'HSNFCCRT', 'HSNMTCRT', 'HSNMCCRT')
+        if failure_model == 'larc05':
+            # The LaRC05 criteria are evaluated by the user subroutine and
+            # stored in the user-defined output variables.
+            return ('UVARM', )
+        return ()
+
+    def _get_default_rib_output_variables(self):
+        '''
+        Field output variables of the ribs.
+
+        A metallic rib has no composite layup, so it appears in no layup output
+        request and its strength can only be checked from its stress field.
+        '''
+        if str(self.pMesh.get('rib_material_type', 'composite')).lower() in ALUMINUM_RIB_TYPES:
+            return ('S', )
+        return ()
+
+    def _get_layup_location_options(self):
+        '''
+        Section points written by the layup field output requests.
+
+        `pRun['layup_output_ply_locations']` can be:
+
+        - 'all' (default): every section point of every ply.
+        - 'top_bottom': ply top and ply bottom, i.e., two thirds of the data of
+          a three-point Simpson rule.  The failure indices are convex functions
+          of a stress state that varies linearly across a ply, so the ply
+          extremes are kept unless a stress component changes sign inside the
+          ply.
+        - 'mid': ply middle only, the smallest and least conservative option.
+        '''
+        mode = str(self.pRun.get('layup_output_ply_locations', 'all')).lower()
+        if mode in ('all', 'all_locations'):
+            return {'layupLocationMethod': ALL_LOCATIONS}
+        if mode in ('top_bottom', 'top-bottom'):
+            return {'layupLocationMethod': SPECIFIED,
+                    'outputAtPlyTop': True, 'outputAtPlyMid': False,
+                    'outputAtPlyBottom': True}
+        if mode == 'mid':
+            return {'layupLocationMethod': SPECIFIED,
+                    'outputAtPlyTop': False, 'outputAtPlyMid': True,
+                    'outputAtPlyBottom': False}
+        raise ValueError('Invalid layup_output_ply_locations: %s' % mode)
+
     def _create_material_aluminum_7075(self):
         '''
         Create an isotropic aluminum alloy material for metallic ribs.
 
-        Units follow the rest of the model: N, mm, kg.
+        Units follow the rest of the model, i.e., N, mm, tonne, so the density
+        is 2.81 g/cm^3 expressed in tonne/mm^3.
         '''
         material_name = str(self.pMesh.get('rib_material_name', 'Aluminum-7075'))
         if material_name in self.model.materials:
             return
         self.model.Material(name=material_name)
-        self.model.materials[material_name].Density(table=((2.81E-6, ), ))
+        self.model.materials[material_name].Density(table=((2.81E-9, ), ))
         self.model.materials[material_name].Elastic(table=((7.10E4, 0.33), ))
 
     def initialization(self):
@@ -573,12 +613,10 @@ class WingboxModel(Model):
             default_variables = ('U',)
             default_layup_variables = ()
 
-        # Failure criteria of the built-in Hashin model are always requested,
-        # unless the layup variables are explicitly defined by the user.
-        if ('output_layup_variables' not in self.pRun
-                and self.pMesh['failure_model'] == 'Hashin'):
-            default_layup_variables += (
-                'DMICRT', 'HSNFTCRT', 'HSNFCCRT', 'HSNMTCRT', 'HSNMCCRT')
+        # Failure criteria are always requested, unless the layup variables are
+        # explicitly defined by the user.
+        if 'output_layup_variables' not in self.pRun:
+            default_layup_variables += self._get_failure_output_variables()
 
         #* User-defined variables (pRun), which override the output mode
         variables = self._get_output_variables(
@@ -587,14 +625,17 @@ class WingboxModel(Model):
             'output_layup_variables', default_layup_variables)
         buckling_variables = self._get_output_variables(
             'output_buckling_variables', ('U',))
+        rib_variables = self._get_output_variables(
+            'output_rib_variables', self._get_default_rib_output_variables())
 
         if not variables:
             raise ValueError('pRun.output_variables must not be empty.')
         if not buckling_variables:
             raise ValueError('pRun.output_buckling_variables must not be empty.')
 
-        print('>>> OUTPUT_VARIABLES mode=%s global=%s layup=%s buckling=%s'
-              % (output_mode, variables, layup_variables, buckling_variables))
+        print('>>> OUTPUT_VARIABLES mode=%s global=%s layup=%s buckling=%s rib=%s'
+              % (output_mode, variables, layup_variables, buckling_variables,
+                 rib_variables))
 
         # Abaqus creates PRESELECT field/history requests automatically when a
         # step is created.  If retained, those requests write every converged
@@ -654,18 +695,37 @@ class WingboxModel(Model):
                 # shape there.
                 static_output.deactivate(buckle_step_name)
 
+        # A metallic rib carries no composite layup, so it appears in none of
+        # the layup requests below and its stress field is the only way to
+        # check its strength.
+        if rib_variables:
+            a = self.rootAssembly
+            for rib in self.ribs:
+                if rib.name_layups:
+                    continue
+                self.model.FieldOutputRequest(
+                    name='Rib-Output-%s' % rib.name_part,
+                    createStepName=static_step_name,
+                    variables=rib_variables,
+                    frequency=LAST_INCREMENT,
+                    region=a.instances[rib.name_part].sets['all'])
+
         # An empty variable list means that no ply-by-ply output is needed,
-        # e.g., the optimisation mode without a built-in failure model.
+        # e.g., the optimisation mode without a failure model.
         if not layup_variables:
             print('>>> OUTPUT_VARIABLES no layup output request is created.')
             return
+
+        layup_locations = self._get_layup_location_options()
+        print('>>> OUTPUT_VARIABLES layup section points: %s'
+              % self.pRun.get('layup_output_ply_locations', 'all'))
 
         for i, name_layup in enumerate(self.lofting.name_layups):
             self.model.FieldOutputRequest(name='Layup-Output-lofting-%d' % i,
                 createStepName=static_step_name, variables=layup_variables,
                 frequency=LAST_INCREMENT,
                 layupNames=('lofting.%s' % name_layup, ),
-                layupLocationMethod=ALL_LOCATIONS, rebar=EXCLUDE)
+                rebar=EXCLUDE, **layup_locations)
 
         for i, rib in enumerate(self.ribs):
             for j, name_layup in enumerate(rib.name_layups):
@@ -673,7 +733,7 @@ class WingboxModel(Model):
                     createStepName=static_step_name, variables=layup_variables,
                     frequency=LAST_INCREMENT,
                     layupNames=('%s.%s' % (rib.name_part, name_layup), ),
-                    layupLocationMethod=ALL_LOCATIONS, rebar=EXCLUDE)
+                    rebar=EXCLUDE, **layup_locations)
 
     def setup_jobs(self):
         '''
@@ -695,8 +755,7 @@ if __name__ == '__main__':
 
     fname = get_parameter_file(sys.argv)
     print('>>> Reading parameters from: %s' % fname)
-    with open(fname, 'r') as f:
-        parameters = json.load(f)
+    parameters = load_parameters(fname)
 
     pGeo = parameters['pGeo']
     pMesh = parameters['pMesh']
@@ -716,11 +775,11 @@ if __name__ == '__main__':
         pass
     elif execution_mode in ('write_input', 'write-input'):
         model.write_job_inp()
-        if pMesh['failure_model'] == 'LaRC05':
+        if get_failure_model(pMesh) == 'larc05':
             model.write_IM785517_property_table_inp(
                 method=pMesh['user_subroutine'], fname_input=model.name_job+'.inp')
     elif execution_mode in ('datacheck', 'data_check', 'data-check'):
-        if pMesh['failure_model'] == 'LaRC05':
+        if get_failure_model(pMesh) == 'larc05':
             raise RuntimeError(
                 'In-process datacheck is not supported for the patched LaRC05 input deck.'
             )
@@ -773,14 +832,18 @@ if __name__ == '__main__':
             )
     elif execution_mode not in ('default', 'auto'):
         raise ValueError('Invalid execution_mode: %s' % execution_mode)
-    elif pMesh['failure_model'] == 'LaRC05':
+    elif get_failure_model(pMesh) == 'larc05':
         model.write_job_inp()
         model.write_IM785517_property_table_inp(
             method=pMesh['user_subroutine'], fname_input=model.name_job+'.inp')
     else:
         if not parameters['not_run_job']:
             model.submit_job(name_job)
-            if bool(parameters.get('wait_for_completion', False)):
+            # Abaqus/CAE submits asynchronously.  Returning here would end the
+            # CAE session while the solver is still starting up, and the caller
+            # would clean away the *.com/*.env/*.sim/*.stt files it needs, so
+            # waiting is the default.
+            if bool(parameters.get('wait_for_completion', True)):
                 print('>>> Waiting for Abaqus job %s to complete.' % name_job)
                 sys.stdout.flush()
                 mdb.jobs[name_job].waitForCompletion()

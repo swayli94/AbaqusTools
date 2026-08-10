@@ -5,6 +5,31 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 
+def get_laminate_thickness(params, default_ply_thickness=None):
+    '''
+    Total thickness (mm) of a layup definition in `pMesh`.
+
+    Parameters
+    -------------
+    params: dict
+        layup parameters, i.e., `layup_orientAngles`, `layup_symmetric`, and
+        optionally `ply_thickness`.
+
+    default_ply_thickness: float, None
+        fallback for layups without their own `ply_thickness`,
+        i.e., the global `pMesh['ply_thickness']`.
+    '''
+    ply_thickness = params.get('ply_thickness', default_ply_thickness)
+    if ply_thickness is None:
+        raise ValueError('No ply thickness defined for the layup.')
+
+    n_plies = len(params['layup_orientAngles'])
+    if params.get('layup_symmetric', False):
+        n_plies *= 2
+
+    return float(ply_thickness) * n_plies
+
+
 def read_airfoil(filename):
     '''
     Read airfoil coordinates from file.

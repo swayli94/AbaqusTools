@@ -487,10 +487,12 @@ class Model(object):
             raise Exception
         
         
-        if 'failure_model' not in self.pMesh:
+        failure_model = str(self.pMesh.get('failure_model', 'none')).lower()
+
+        if failure_model in ('none', 'null'):
             return
-        
-        elif self.pMesh['failure_model']=="LaRC05":
+
+        elif failure_model=="larc05":
             '''
             When the model runs with LaRC05 user material (UMAT), user-defined output variables (UVARM).
             
@@ -507,7 +509,7 @@ class Model(object):
             print('    Write the "PROPERTY TABLE" in the `*.inp` file.')
             print('>>>')
             
-        elif self.pMesh['failure_model']=="Hashin":
+        elif failure_model=="hashin":
             '''
             Abaqus tutorial:
             
@@ -528,7 +530,8 @@ class Model(object):
                 docs/v6.6/books/usb/default.htm?startat=pt05ch19s03abm42.html
             
             '''
-            self.model.materials['IM7/8551-7'].Density(table=((1.272, ), ))
+            # 1.272 g/cm^3 in the N-mm system, i.e., tonne/mm^3
+            self.model.materials['IM7/8551-7'].Density(table=((1.272E-9, ), ))
             
             self.model.materials['IM7/8551-7'].HashinDamageInitiation(table=((
                 2560.0, 1590.0, 73.0, 185.0, 90.0, 92.5), ), alpha=1.0)
@@ -557,7 +560,7 @@ class Model(object):
             
         elif unit_length == 'mm':
             
-            self.model.materials['Steel'].Density(table=((7.8E-6, ), ))     # (Density (kg/mm^3))
+            self.model.materials['Steel'].Density(table=((7.8E-9, ), ))     # (Density (tonne/mm^3))
             self.model.materials['Steel'].Elastic(table=((2.1E5, 0.3),))    # (Young's modulus (N/mm^2), Poisson ratio)
             self.model.materials['Steel'].Plastic(scaleStress=None, 
                 table=((3.00E2, 0.0), (3.50E2, 0.025), (3.75E2, 0.1),       # (Yield stress (N/mm^2), Plastic strain)
@@ -594,7 +597,7 @@ class Model(object):
             
         elif unit_length == 'mm':
             
-            self.model.materials['Ti-6Al-4V'].Density(table=((4.48E-6, ), ))    # (Density (kg/mm^3))
+            self.model.materials['Ti-6Al-4V'].Density(table=((4.48E-9, ), ))    # (Density (tonne/mm^3))
             self.model.materials['Ti-6Al-4V'].Elastic(table=((1.287E5, 0.33),)) # (Young's modulus (N/mm^2), Poisson ratio)
             self.model.materials['Ti-6Al-4V'].Plastic(scaleStress=None, 
                 table=((1.085E3, 0.00), (1.093E3, 0.02),                    # (Yield stress (N/mm^2), Plastic strain)
@@ -647,7 +650,7 @@ class Model(object):
         
         Chapter 7.2 UMAT
         '''
-        if not self.pMesh['failure_model']=="LaRC05":
+        if not str(self.pMesh.get('failure_model', 'none')).lower()=="larc05":
             return
 
         N_SKIP_LINE_IM78551 = 3

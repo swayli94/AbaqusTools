@@ -1,0 +1,566 @@
+{
+  "__length_unit__": "mm",
+  "__angle_unit__": "degree",
+  "__force_unit__": "Newton",
+  "__pressure_unit__": "MPa",
+  "pGeo": {
+    "sections": [
+      {
+        "xLE": 0.0,
+        "yLE": 0.0,
+        "zLE": 0.0,
+        "chord": 1000.0,
+        "twist": 0.0,
+        "airfoil": "BAC-NLF.dat",
+        "t_cover": 4.0,
+        "r_rib": 8.0,
+        "spars": [
+          {
+            "x": 0.2,
+            "t": 8.0
+          },
+          {
+            "x": 0.7,
+            "t": 8.0
+          }
+        ],
+        "stringers": [
+          {
+            "x": 0.25,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.3,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.35,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.4,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.45,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.5,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.55,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.6,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.65,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          }
+        ],
+        "cutouts": []
+      },
+      {
+        "xLE": 200.0,
+        "yLE": 50.0,
+        "zLE": 500.0,
+        "chord": 800.0,
+        "twist": 2.0,
+        "airfoil": "BAC-NLF.dat",
+        "t_cover": 4.0,
+        "spars": [
+          {
+            "x": 0.2,
+            "t": 8.0
+          },
+          {
+            "x": 0.7,
+            "t": 8.0
+          }
+        ],
+        "stringers": [
+          {
+            "x": 0.25,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.3,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.35,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.4,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.45,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.5,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.55,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.6,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.65,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          }
+        ],
+        "cutouts": []
+      },
+      {
+        "xLE": 400.0,
+        "yLE": 100.0,
+        "zLE": 1000.0,
+        "chord": 600.0,
+        "twist": 4.0,
+        "airfoil": "BAC-NLF.dat",
+        "t_cover": 4.0,
+        "spars": [
+          {
+            "x": 0.2,
+            "t": 8.0
+          },
+          {
+            "x": 0.7,
+            "t": 8.0
+          }
+        ],
+        "stringers": [
+          {
+            "x": 0.25,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.3,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.35,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.4,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.45,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.5,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.55,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.6,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          },
+          {
+            "x": 0.65,
+            "t": 2.0,
+            "h": 0.005,
+            "w": 0.005
+          }
+        ],
+        "cutouts": []
+      }
+    ]
+  },
+  "pMesh": {
+    "global_seedPart_size": 10.0,
+    "spar_seedEdge_number": 11,
+    "stringer_seedEdge_number": 6,
+    "rib_seedPart_size": 5.0,
+    "rib_seedEdge_size": 5.0,
+    "fillet_seedEdge_size": 1.0,
+    "material_name": "IM7/8551-7",
+    "ply_thickness": 0.125,
+    "ply_numIntPts": 3,
+    "cover": {
+      "upper": {
+        "ply_thickness": 0.125,
+        "layup_symmetric": true,
+        "layup_orientAngles": [
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          0,
+          -45,
+          90,
+          45,
+          -45
+        ]
+      },
+      "lower": {
+        "ply_thickness": 0.125,
+        "layup_symmetric": true,
+        "layup_orientAngles": [
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          0,
+          -45,
+          90,
+          45,
+          -45
+        ]
+      }
+    },
+    "rib": [
+      {
+        "layup_symmetric": true,
+        "layup_orientAngles": [
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          -45
+        ],
+        "ply_thickness": 8.0
+      },
+      {
+        "layup_symmetric": true,
+        "layup_orientAngles": [
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          -45
+        ],
+        "ply_thickness": 8.0
+      },
+      {
+        "layup_symmetric": true,
+        "layup_orientAngles": [
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          -45
+        ],
+        "ply_thickness": 8.0
+      }
+    ],
+    "spar": [
+      {
+        "layup_symmetric": true,
+        "layup_orientAngles": [
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          -45
+        ],
+        "ply_thickness": 0.125
+      },
+      {
+        "layup_symmetric": true,
+        "layup_orientAngles": [
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          90,
+          -45,
+          0,
+          45,
+          0,
+          -45,
+          0,
+          0,
+          90,
+          45,
+          -45
+        ],
+        "ply_thickness": 0.125
+      }
+    ],
+    "stringer": {
+      "layup_symmetric": true,
+      "layup_orientAngles": [
+        45,
+        -45,
+        0,
+        45,
+        90,
+        -45,
+        0,
+        90
+      ],
+      "ply_thickness": 0.125
+    },
+    "pressure_upper_cover": 0.03,
+    "pressure_lower_cover": 0.02,
+    "failure_model": "Hashin",
+    "user_subroutine": "UVARM",
+    "rib_material_type": "aluminum",
+    "rib_material_name": "Aluminum-7075",
+    "rib_partition_mode": "face_tie",
+    "face_search_tolerance": 10.0,
+    "pressure_start_section": 0,
+    "engine_pylon_section": 2,
+    "engine_pylon_spar_index": 1,
+    "engine_weight_force": -2000.0,
+    "outboard_lift_force": 8000.0,
+    "outboard_lift_application": "engine_pylon_reference_point",
+    "outboard_lift_eccentricity_mm": 0.0,
+    "non_design_wingbox_sections": [
+      0
+    ],
+    "non_design_region": {
+      "thickness_factor": {
+        "cover": 1.5,
+        "spar": 1.5,
+        "stringer": 1.5
+      },
+      "rib_thickness": 12.0
+    },
+    "tie_strategy": "station_nodes",
+    "tie_adjust": false,
+    "tie_thickness": false,
+    "tie_rotations": true,
+    "shell_mesh_control_scope": "faces",
+    "short_edge_virtual_topology": true,
+    "short_edge_threshold": 0.1,
+    "short_edge_collinearity_cosine": -0.99,
+    "station_node_selection": "station_plane"
+  },
+  "pRun": {
+    "analysis_type": "static_buckle",
+    "buckling_base_state": "initial",
+    "output_mode": "optimisation",
+    "layup_output_ply_locations": "all",
+    "numEigen": 3,
+    "buckling_min_eigen": 1e-06,
+    "buckling_block_size": 10,
+    "buckling_max_blocks": 100,
+    "timePeriod": 1.0,
+    "maxNumInc": 1000,
+    "initialInc": 0.1,
+    "minInc": 1e-08,
+    "maxInc": 0.25,
+    "nlgeom": false,
+    "memory_max_percentage": 30,
+    "numCpus": 4,
+    "numThreadsPerMpiProcess": 1
+  },
+  "name_job": "Job_SIMPLE_WINGBOX",
+  "not_run_job": false,
+  "wait_for_completion": true,
+  "postprocess": {
+    "enabled": true,
+    "slim_odb": true,
+    "delete_source_odb": false
+  }
+}

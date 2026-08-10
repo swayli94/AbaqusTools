@@ -20,15 +20,16 @@ class SparGeometry:
     ---------------
     x: float
         x coordinate of the spar (relative to chord)
-    t: float
-        thickness of the spar (mm)
-    
+    t: float, None
+        nominal thickness of the spar (mm), only used for plotting.
+        The structural thickness comes from the layup in `pMesh`.
+
     Attributes
     ---------------
     n_points: int
         number of points to discretize the spar line.
     '''
-    def __init__(self, x, t):
+    def __init__(self, x, t=None):
         self._x = x
         self._t = t
         self._n_points = 11
@@ -62,9 +63,9 @@ class SparGeometry:
     @property
     def t(self):
         '''
-        thickness of the spar (mm)
+        nominal thickness of the spar (mm), None when it is not defined
         '''
-        return float(self._t)
+        return None if self._t is None else float(self._t)
 
     def get_selection_point(self, feature='spar', side='upper'):
         '''
@@ -109,14 +110,15 @@ class StringerGeometry:
     ---------------
     x: float
         x coordinate of the stringer (relative to chord)
-    t: float
-        thickness of the stringer (mm)
+    t: float, None
+        nominal thickness of the stringer (mm), only used for plotting.
+        The structural thickness comes from the layup in `pMesh`.
     h: float
-        height of the vertical section (web) of the stringer (mm)
+        height of the vertical section (web) of the stringer (relative to chord)
     w: float
-        width of the horizontal section (flange) of the stringer (mm)
+        width of the horizontal section (flange) of the stringer (relative to chord)
     '''
-    def __init__(self, x, t, h, w):
+    def __init__(self, x, h, w, t=None):
         self._x = x
         self._t = t
         self._h = h
@@ -187,21 +189,21 @@ class StringerGeometry:
     @property
     def t(self):
         '''
-        thickness of the stringer (mm)
+        nominal thickness of the stringer (mm), None when it is not defined
         '''
-        return float(self._t)
+        return None if self._t is None else float(self._t)
 
     @property
     def h(self):
         '''
-        height of the vertical section of the stringer (mm)
+        height of the vertical section of the stringer (relative to chord)
         '''
         return float(self._h)
-    
+
     @property
     def w(self):
         '''
-        width of the horizontal section of the stringer (mm)
+        width of the horizontal section of the stringer (relative to chord)
         '''
         return float(self._w)
 
@@ -509,7 +511,7 @@ class WingSectionGeometry:
             'yu': np.array([]), # y coordinates of the upper surface of the unit airfoil
             'yl': np.array([]), # y coordinates of the lower surface of the unit airfoil
             
-            't_cover': 0.02, # wing cover thickness (mm)
+            't_cover': None, # nominal wing cover thickness (mm), only used for plotting
             
             'spars': [], # spar geometries
             'stringers': [], # stringer geometries
@@ -545,11 +547,14 @@ class WingSectionGeometry:
             if key in self.parameters:
                 self.parameters[key] = parameters[key]
                 
+        # The nominal `t` of a spar/stringer is optional: the structural
+        # thickness comes from the layup in `pMesh`, `t` is only a plotting hint.
         for params in self.parameters['spars']:
-            self.spars.append(SparGeometry(x=params['x'], t=params['t']))
-        
+            self.spars.append(SparGeometry(x=params['x'], t=params.get('t')))
+
         for params in self.parameters['stringers']:
-            self.stringers.append(StringerGeometry(x=params['x'], t=params['t'], h=params['h'], w=params['w']))
+            self.stringers.append(StringerGeometry(
+                x=params['x'], h=params['h'], w=params['w'], t=params.get('t')))
         
         for params in self.parameters['cutouts']:
             self.cutouts.append(CutoutGeometry(x=params['x'], y=params['y'],
@@ -738,8 +743,10 @@ class WingSectionGeometry:
     @property
     def t_cover(self):
         '''
-        wing cover thickness (mm)
+        nominal wing cover thickness (mm), None when it is not defined
         '''
+        if self.parameters['t_cover'] is None:
+            return None
         return float(self.parameters['t_cover'])
     
     @property
@@ -1005,39 +1012,101 @@ def get_primaryAxisVector_section(section, feature='rib'):
     return primary_axis_vector
     
 
-def plot_wing_section_geometry(wing_section_geometry):
+def get_plot_line_widths(wing_section_geometry, pMesh=None):
+    '''
+    Line widths (mm) used to draw a wing section.
+
+    The structural thickness of every component is defined by its layup in
+    `pMesh`, so that is what is drawn when `pMesh` is given.  Otherwise the
+    nominal `t_cover` / `t` of `pGeo` is used, and components without one fall
+    back to a thin default line.
+
+    Parameters
+    ---------------
+    wing_section_geometry: WingSectionGeometry
+        the wing section to be drawn.
+    pMesh: dict, None
+        mesh/property parameters holding the `cover`, `spar` and `stringer`
+        layups.  The non-design thickening of a bay is not applied here.
+
+    Returns
+    ---------------
+    widths: dict
+        {'cover_upper': float, 'cover_lower': float,
+         'spar': [float], 'stringer': float}
+    '''
+    from utils import get_laminate_thickness
+
+    wsg = wing_section_geometry
+    default_width = 2.0
+
+    widths = {
+        'cover_upper': wsg.t_cover or default_width,
+        'cover_lower': wsg.t_cover or default_width,
+        'spar': [(spar.t or default_width) for spar in wsg.spars],
+        'stringer': default_width,
+    }
+    if wsg.n_stringers > 0 and wsg.stringers[0].t is not None:
+        widths['stringer'] = wsg.stringers[0].t
+
+    if pMesh is None:
+        return widths
+
+    ply_thickness = pMesh.get('ply_thickness')
+
+    cover = pMesh['cover']
+    for side in ('upper', 'lower'):
+        params = cover[side] if side in cover else cover
+        widths['cover_%s' % side] = get_laminate_thickness(params, ply_thickness)
+
+    widths['spar'] = [
+        get_laminate_thickness(pMesh['spar'][j], ply_thickness)
+        for j in range(wsg.n_spars)]
+
+    if wsg.n_stringers > 0:
+        widths['stringer'] = get_laminate_thickness(pMesh['stringer'], ply_thickness)
+
+    return widths
+
+
+def plot_wing_section_geometry(wing_section_geometry, pMesh=None):
     '''
     Plot the wing section geometry using matplotlib.
-    
+
     Parameters
     ---------------
     wing_section_geometry: WingSectionGeometry
         the wing section geometry to be plotted.
+    pMesh: dict, None
+        mesh/property parameters.  When given, every component is drawn with
+        the total thickness of its layup instead of the nominal `pGeo` value.
     '''
     import matplotlib.pyplot as plt
 
     wsg = wing_section_geometry
+    widths = get_plot_line_widths(wsg, pMesh)
     fig, ax = plt.subplots(figsize=(12, 5))
 
     # Airfoil outline
     xu, yu = wsg.get_airfoil_upper_surface()
     xl, yl = wsg.get_airfoil_lower_surface()
-    ax.plot(xu, yu, 'k-', lw=wsg.t_cover, label='Airfoil')
-    ax.plot(xl, yl, 'k-', lw=wsg.t_cover)
-    ax.plot([xu[-1], xl[-1]], [yu[-1], yl[-1]], 'k-', lw=wsg.t_cover)  # trailing edge
+    ax.plot(xu, yu, 'k-', lw=widths['cover_upper'], label='Airfoil')
+    ax.plot(xl, yl, 'k-', lw=widths['cover_lower'])
+    ax.plot([xu[-1], xl[-1]], [yu[-1], yl[-1]], 'k-', lw=widths['cover_lower'])  # trailing edge
 
     # Spars
     for i, spar in enumerate(wsg.spars):
-        ax.plot(spar.x3d, spar.y3d, 'b-', lw=spar.t,
+        ax.plot(spar.x3d, spar.y3d, 'b-', lw=widths['spar'][i],
                 label='Spar' if i == 0 else '_nolegend_')
 
     # Stringers (upper and lower, web and flange)
+    lw_stringer = widths['stringer']
     for i, st in enumerate(wsg.stringers):
         lbl = 'Stringer' if i == 0 else '_nolegend_'
-        ax.plot(st.x3d_upper_web,    st.y3d_upper_web,    'r-', lw=st.t, label=lbl)
-        ax.plot(st.x3d_upper_flange, st.y3d_upper_flange, 'r-', lw=st.t, label='_nolegend_')
-        ax.plot(st.x3d_lower_web,    st.y3d_lower_web,    'r-', lw=st.t, label='_nolegend_')
-        ax.plot(st.x3d_lower_flange, st.y3d_lower_flange, 'r-', lw=st.t, label='_nolegend_')
+        ax.plot(st.x3d_upper_web,    st.y3d_upper_web,    'r-', lw=lw_stringer, label=lbl)
+        ax.plot(st.x3d_upper_flange, st.y3d_upper_flange, 'r-', lw=lw_stringer, label='_nolegend_')
+        ax.plot(st.x3d_lower_web,    st.y3d_lower_web,    'r-', lw=lw_stringer, label='_nolegend_')
+        ax.plot(st.x3d_lower_flange, st.y3d_lower_flange, 'r-', lw=lw_stringer, label='_nolegend_')
 
     # Cutouts - assemble closed outline: left -> upper-left fillet -> upper -> upper-right fillet
     #           -> right (reversed) -> lower-right fillet -> lower (reversed) -> lower-left fillet
@@ -1164,13 +1233,16 @@ def plot_selection_points(wing_section_geometry, fig, ax):
 
 
 if __name__ == '__main__':
-    import json
+    import sys
     import matplotlib.pyplot as plt
 
+    from params import get_parameter_file, load_parameters
+
     path = os.path.dirname(os.path.abspath(__file__))
-    fname = os.path.join(path, 'default-parameters.json')
-    with open(fname, 'r') as f:
-        parameters = json.load(f)
+    fname = get_parameter_file(sys.argv)
+    if not os.path.isfile(fname):
+        fname = os.path.join(path, fname)
+    parameters = load_parameters(fname)
 
     pGeo = parameters['pGeo']
     pMesh = parameters['pMesh']
@@ -1180,7 +1252,7 @@ if __name__ == '__main__':
         section_params['airfoil'] = os.path.join(path, section_params['airfoil'])
         wsg = WingSectionGeometry()
         wsg.set_parameters(section_params)
-        fig, ax = plot_wing_section_geometry(wsg)
+        fig, ax = plot_wing_section_geometry(wsg, pMesh=pMesh)
         plot_selection_points(wsg, fig, ax)
         plt.tight_layout()
         plt.show()
