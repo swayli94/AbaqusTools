@@ -224,14 +224,47 @@ Some things have no kernel API and must be done by rewriting the input deck afte
 `write_job_inp()` and before submitting: `Model.write_static_step_inp`,
 `write_output_field_frequency_interval`, `write_IM785517_property_table_inp`.
 
-They all follow the same shape — scan lines, match a keyword such as `*Static` or
-`*Output, field`, write replacement lines, skip a fixed number of original lines
-(`N_SKIP_LINE_*`). When adding one: the skip count is the number of lines the *original* block
-occupies, keyword matching is on `line.split()` so it is whitespace-tolerant but **case-sensitive**,
-and Abaqus writes `*Material, name=IM7/8551-7` with that exact capitalisation. Always print what was
-overwritten — these edits are invisible otherwise.
+All of them scan the deck line by line, match a keyword, write replacement lines, and drop the
+original block. **How the original block is dropped is the part that goes wrong**, and there are two
+correct answers:
 
-## 9. Before finishing
+*Fixed line count* — valid only when the replaced block has a known, constant length.
+`write_static_step_inp` skips `N_SKIP_LINE_STATIC = 2` after `*Static` (the keyword plus its single
+data line); `write_output_field_frequency_interval` skips 1 after `*Output, field`.
+
+*Scan to the end of the block* — required when the length varies.
+`write_IM785517_property_table_inp` must do this: after `*Material, name=IM7/8551-7` it keeps
+skipping while the line is a material option (`*ELASTIC`, `*DENSITY`) or one of its data lines, and
+stops at the first keyword that is not. A fixed count of 3 was wrong here, because
+`*ELASTIC, type=ENGINEERING CONSTANTS` spans two data lines; the leftover line made Abaqus abort
+with `TOO FEW LINES TO DEFINE THIS MATERIAL OPTION`. Do not reintroduce a fixed count for any block
+whose data lines depend on the material definition.
+
+Other details worth keeping: keyword matching is on `line.split()`, so it tolerates whitespace but
+is **case-sensitive** — Abaqus writes `*Material, name=IM7/8551-7` with exactly that capitalisation,
+while the block-end test upper-cases the keyword before comparing. Always print what was overwritten;
+these edits are otherwise invisible until the solver complains.
+
+## 9. Running LaRC05 jobs
+
+The LaRC05 path (`pMesh['failure_model'] == 'larc05'`) does not submit from inside CAE. The deck is
+written, patched (§8), and only then submitted from `wingbox/run.py`:
+
+```bash
+abaqus interactive job=<name> user=uvarm.f90 cpus=<n> standard_parallel=solver
+```
+
+- **`standard_parallel=solver` is mandatory.** The LaRC05 user subroutine keeps module-level state
+  and is not thread-safe; a parallel element loop segfaults. This flag keeps the element loop serial
+  while the linear solver still uses every cpu. Never drop it to "speed things up".
+- **`abaqus_v6.env` must survive cleanup.** `clean_temporary_files()` deletes job scratch `*.env`
+  files but explicitly spares `abaqus_v6.env`, which carries the local Fortran compiler override
+  between the model build and the job submission. Deleting it makes the user subroutine fail to
+  compile.
+- The Fortran sources live in `LaRC05/` and are tracked deliberately, since the run cannot be
+  reproduced without them.
+
+## 10. Before finishing
 
 - Python 2.7 syntax in everything that runs inside Abaqus.
 - Guarded Abaqus imports (`if IS_ABAQUS:`).
