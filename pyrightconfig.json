@@ -1,0 +1,20 @@
+{
+    "//": "Abaqus API type hints come from the vendored abqpy stubs in external/abqpy.",
+    "//1": "extraPaths puts them on the TYPE CHECKER's path only. Never put them on the",
+    "//2": "runtime path: importing abqpy's `abaqus` module outside Abaqus re-launches the",
+    "//3": "script through `abaqus cae`. See external/README.md.",
+
+    "extraPaths": [
+        "external/abqpy/src"
+    ],
+
+    "typeCheckingMode": "off",
+
+    "exclude": [
+        "**/__pycache__",
+        "external",
+        "temp*",
+        "docs/_build",
+        "build"
+    ]
+}

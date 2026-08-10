@@ -1,11 +1,14 @@
 '''
-You are suggested to install `abqpy` to provide type hints for Abaqus/Python scripting.
+Type hints for Abaqus/Python scripting come from `abqpy`, vendored as a git
+submodule in `external/abqpy` and pinned to its 2023 branch to match Abaqus 2023.
 
-    `abqpy` is a Python package providing type hints for Python scripting of Abaqus, 
-    you can use it to write your Python script of Abaqus fluently, even without doing anything in Abaqus. 
-    It also provides some simple APIs to execute the Abaqus commands so that you can run your 
-    Python script to build the model, submit the job and extract the output data in just one Python script, 
-    even without opening the Abaqus/CAE.
+`pyrightconfig.json` puts `external/abqpy/src` on the type checker's path, which
+is all that is needed for completion and signatures in the editor.
+
+Do NOT `pip install abqpy` for this package and do NOT import its modules at
+runtime: `abqpy`'s `abaqus` module calls `abqpy.run(cae=True)` when imported,
+which re-launches the running script through `abaqus cae`. The `IS_ABAQUS` guard
+below is what keeps that from happening in ordinary Python.
 
     https://github.com/haiiliin/abqpy
 '''
@@ -23,8 +26,11 @@ else:
     
     IS_ABAQUS = False
     
+#* Pure data, no Abaqus import, usable in a normal Python as well
+from AbaqusTools.materials import MATERIAL_LIBRARY, get_material, list_materials
+
 if IS_ABAQUS:
-    
+
     from AbaqusTools.part import Part
     from AbaqusTools.model import Model, NodeOperation
     from AbaqusTools.odb import OdbOperation

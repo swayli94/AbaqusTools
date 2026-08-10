@@ -16,18 +16,32 @@ Setup step
     describes the commands used to configure controls, damping, and frequency tables.
 
 
-The :py:class:`Model <AbaqusTools.model.Model>` class provides functions 
-to setup a step for static analysis or dynamic analysis.
+The :py:class:`Model <AbaqusTools.model.Model>` class provides a function
+to setup a step for static analysis. It pins the conventions used throughout
+this package: the step is named ``'Loading'`` and follows ``'Initial'``.
 
 .. literalinclude:: ../../../AbaqusTools/model.py
     :language: python
-    :linenos: 
+    :linenos:
     :pyobject: Model.create_static_step
 
-.. literalinclude:: ../../../AbaqusTools/model.py
-    :language: python
-    :linenos: 
-    :pyobject: Model.create_dynamic_step
+Other step types are created directly with the Abaqus API, since they carry no
+convention worth wrapping. For an explicit dynamic analysis, note that the
+element types must then be selected from the ``EXPLICIT`` element library:
+
+.. code-block:: python
+    :linenos:
+
+    self.model.ExplicitDynamicsStep(
+            name=               'Loading',
+            previous=           'Initial',
+            description=        'Dynamic (explicit) simulation',
+            nlgeom=             ON,
+            improvedDtMethod=   ON)
+
+A linear perturbation buckling step is built in
+``wingbox/wingbox_model.py``, which assembles the ``BuckleStep`` options from
+the run parameters and supports a preloaded base state.
 
 
 Setup output

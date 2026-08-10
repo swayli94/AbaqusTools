@@ -31,6 +31,14 @@ AbaqusTools.pbc
    :undoc-members:
    :show-inheritance:
 
+AbaqusTools.materials
+===========================
+
+.. automodule:: AbaqusTools.materials
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 AbaqusTools.functions
 ===========================
 

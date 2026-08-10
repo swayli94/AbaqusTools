@@ -13,3 +13,5 @@ temp*
 
 error-analysis*
 field-figure*
+
+.claude/settings.local.json

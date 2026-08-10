@@ -32,6 +32,14 @@ AbaqusTools addresses these challenges by providing intuitive Python classes and
 - Geometric operations and automated mesh generation
 - Operations in Sketch, Part, Property, and Mesh modules
 
+### Material Library
+
+- `MATERIAL_LIBRARY` in `AbaqusTools/materials.py` holds the material cards as plain dictionaries
+  in the N-mm-tonne unit system, with on-the-fly conversion to N-m-kg
+- `Model.create_material(name)` and `Model.create_section(name)` consume the library, so adding a
+  material means adding a dictionary entry rather than a new method
+- Imports nothing from ABAQUS, so the data is also readable from post-processing scripts
+
 ### Composite Material Support
 
 - Specialized `LayupParameters` class for composite layup design
@@ -72,25 +80,34 @@ AbaqusTools addresses these challenges by providing intuitive Python classes and
 
 ## Installation
 
-### Prerequisites
-
-For the best development experience, install `abqpy` alongside AbaqusTools to get comprehensive type hints for ABAQUS Python scripting:
-
-```bash
-pip install abqpy
-```
-
-This enables you to write ABAQUS Python scripts with full IDE support, code completion, and type checking, even without opening ABAQUS/CAE.
-
 ### Installing AbaqusTools
 
-Clone this repository and install:
+Clone this repository together with its submodules:
 
 ```bash
-git clone https://github.com/your-username/AbaqusTools.git
+git clone --recurse-submodules --shallow-submodules https://github.com/your-username/AbaqusTools.git
 cd AbaqusTools
 # Add to your Python path or install as needed
 ```
+
+If you have already cloned without submodules:
+
+```bash
+git submodule update --init --depth 1 external/abqpy
+```
+
+### Type hints for the ABAQUS API
+
+[`abqpy`](https://github.com/haiiliin/abqpy) provides the whole ABAQUS kernel API as annotated
+Python modules with the official documentation as docstrings. It is vendored as a git submodule at
+`external/abqpy`, pinned to abqpy's **2023** branch to match ABAQUS 2023, and wired into
+`pyrightconfig.json` so that VS Code / Pylance gives completions and signatures for `abaqus`,
+`abaqusConstants`, `caeModules` and `odbAccess`.
+
+No installation step is needed, and `pip install abqpy` is **not** recommended here: abqpy's
+`abaqus` module re-launches your script through `abaqus cae` when imported, so the stubs belong on
+the type checker's path only. See [`external/README.md`](external/README.md) for details and for how
+to move the pin when you upgrade ABAQUS.
 
 ## Quick Start
 
@@ -189,10 +206,13 @@ AbaqusTools/
 │   ├── odb.py            # OdbOperation for results processing
 │   ├── pbc.py            # PeriodicBC, PBC_Beam, PBC_3DOrthotropic classes
 │   ├── lin_bc.py         # LBC_3DOrthotropic classes for linear boundary conditions
+│   ├── materials.py      # MATERIAL_LIBRARY: material cards as data, no ABAQUS import
 │   ├── functions.py      # Utility functions and LayupParameters
 │   └── larc05.py         # LaRC05 failure criterion (UVARM, PlyProperty, FailureCriteria)
+├── external/abqpy/       # Submodule: ABAQUS API type hints, pinned to the 2023 branch
 ├── docs/                 # Sphinx documentation
 ├── example/              # Example scripts
+├── wingbox/              # Composite wingbox model
 └── LICENSE               # MIT License
 ```
 

@@ -13,6 +13,7 @@ import copy
 
 from AbaqusTools import IS_ABAQUS
 from AbaqusTools.part import Part
+from AbaqusTools.materials import get_material, scale_table, scale_density
 
 if IS_ABAQUS:
 
@@ -463,30 +464,164 @@ class Model(object):
 
     #* =============================================
     #* Abaqus Property functions
+    def create_material(self, name, elastic_type=None, unit_length='mm',
+                with_density=True, with_plastic=True):
+        '''
+        Create a material from `AbaqusTools.materials.MATERIAL_LIBRARY`.
+
+        Adding a new material is a matter of adding a dictionary entry to that
+        library, not of adding a method here.
+
+        Parameters
+        --------------
+        name: str
+            name of the material in `MATERIAL_LIBRARY`, also used as the
+            name of the material in the Abaqus model
+
+        elastic_type: str, or None
+            key in the material's `elastic` entry, e.g. 'ISOTROPIC', 'LAMINA',
+            'ENGINEERING_CONSTANTS'. Default is None, which uses the material's
+            `default_elastic`.
+
+        unit_length: str
+            'm' or 'mm', unit of length in the Abaqus model.
+            The library stores the N-mm-tonne system, the tables are converted
+            on the fly for 'm'.
+
+        with_density: bool
+            whether to create the `*Density` card
+
+        with_plastic: bool
+            whether to create the `*Plastic` card, if the material defines one
+        '''
+        material = get_material(name)
+
+        if name in self.model.materials.keys():
+            print('>>> [Material]:')
+            print('    "%s" already exists, creation skipped'%(name))
+            return
+
+        elastic_constants = {
+            'ISOTROPIC':                ISOTROPIC,
+            'LAMINA':                   LAMINA,
+            'ENGINEERING_CONSTANTS':    ENGINEERING_CONSTANTS,
+        }
+
+        self.model.Material(name=name, description=material.get('description', ''))
+
+        myMat = self.model.materials[name]
+
+        if with_density and material.get('density', None) is not None:
+            myMat.Density(table=((scale_density(material['density'], unit_length), ), ))
+
+        if elastic_type is None:
+            elastic_type = material['default_elastic']
+
+        if elastic_type not in material['elastic']:
+            raise ValueError('Material "%s" has no elastic type "%s", available: %s'%(
+                name, elastic_type, sorted(material['elastic'].keys())))
+
+        elastic = material['elastic'][elastic_type]
+
+        myMat.Elastic(
+            type=   elastic_constants[elastic['type']],
+            table=  scale_table(elastic['table'], elastic['stress_columns'], unit_length))
+
+        plastic = material.get('plastic', None)
+
+        if with_plastic and plastic is not None:
+            myMat.Plastic(scaleStress=None,
+                table=scale_table(plastic['table'], plastic['stress_columns'], unit_length))
+
+    def create_section(self, name_material, name_section=None, thickness=None):
+        '''
+        Create the section of a material in `MATERIAL_LIBRARY`.
+
+        Parameters
+        --------------
+        name_material: str
+            name of the material
+
+        name_section: str, or None
+            name of the section. Default is None, i.e., the material name.
+
+        thickness: float, or None
+            section thickness. Default is None, i.e., the value stored in the
+            material's `section` entry.
+        '''
+        material = get_material(name_material)
+        section = material.get('section', None)
+
+        if section is None:
+            raise KeyError('Material "%s" defines no section'%(name_material))
+
+        if section['type'] != 'HomogeneousSolidSection':
+            raise NotImplementedError('Section type "%s" is not supported'%(section['type']))
+
+        if name_section is None:
+            name_section = name_material
+
+        if thickness is None:
+            thickness = section.get('thickness', None)
+
+        self.model.HomogeneousSolidSection(
+            name=name_section, material=name_material, thickness=thickness)
+
+    def create_hashin_damage(self, name='IM7/8551-7'):
+        '''
+        Add the Hashin damage initiation and evolution cards to a material.
+
+        Only defined in the N-mm-tonne system.
+
+        Abaqus tutorial:
+
+            Use the following option to define the Hashin damage initiation criterion:
+            *DAMAGE INITIATION, CRITERION=HASHIN, ALPHA, XT, XC, YT, YC, SL, ST
+
+            https://classes.engineering.wustl.edu/2009/spring/mase5513/abaqus/
+            docs/v6.6/books/usb/default.htm?startat=pt05ch19s03abm41.html
+
+            Use the following option to define the damage evolution law:
+            *DAMAGE EVOLUTION, TYPE=ENERGY, SOFTENING=LINEAR, Gft, Gfc, Gmt, Gmc
+
+            The 4 values in `table` are energies dissipated during damage for
+            fiber tension, fiber compression, matrix tension,
+            and matrix compression failure modes, respectively.
+
+            https://classes.engineering.wustl.edu/2009/spring/mase5513/abaqus/
+            docs/v6.6/books/usb/default.htm?startat=pt05ch19s03abm42.html
+        '''
+        material = get_material(name)
+        hashin = material.get('hashin', None)
+
+        if hashin is None:
+            raise KeyError('Material "%s" defines no Hashin damage data'%(name))
+
+        myMat = self.model.materials[name]
+
+        myMat.Density(table=((material['density'], ), ))
+
+        myMat.HashinDamageInitiation(table=hashin['initiation_table'], alpha=hashin['alpha'])
+
+        myMat.hashinDamageInitiation.DamageEvolution(
+            type=ENERGY, table=hashin['evolution_table'])
+
     def create_material_IM785517(self, elastic_type='LAMINA'):
         '''
-        Create material: IM7/8551-7
-        
+        Create material IM7/8551-7 and attach the damage model selected by
+        `pMesh['failure_model']`.
+
+        The material data lives in `AbaqusTools.materials.MATERIAL_LIBRARY`;
+        this method only holds the `failure_model` policy. New code can call
+        `create_material('IM7/8551-7', elastic_type=...)` directly.
+
         Parameters
         --------------
         elastic_type: str
             'LAMINA' or 'ENGINEERING_CONSTANTS'
         '''
-        self.model.Material(name='IM7/8551-7', 
-                            description='https://doi.org/10.1177/0021998312454478')
-        
-        if elastic_type == 'LAMINA':
-            self.model.materials['IM7/8551-7'].Elastic(type=LAMINA, 
-                table=((165000.0, 8400.0, 0.34, 5600.0, 5600.0, 2800.0), ))
-        
-        elif elastic_type == 'ENGINEERING_CONSTANTS':
-            self.model.materials['IM7/8551-7'].Elastic(type=ENGINEERING_CONSTANTS, 
-                table=((165000.0, 8400.0, 8400.0, 0.34, 0.34, 0.5, 5600.0, 5600.0, 2800.0), ))
-        
-        else:
-            raise Exception
-        
-        
+        self.create_material('IM7/8551-7', elastic_type=elastic_type, with_density=False)
+
         failure_model = str(self.pMesh.get('failure_model', 'none')).lower()
 
         if failure_model in ('none', 'null'):
@@ -510,124 +645,38 @@ class Model(object):
             print('>>>')
             
         elif failure_model=="hashin":
-            '''
-            Abaqus tutorial:
-            
-                Use the following option to define the Hashin damage initiation criterion:
-                *DAMAGE INITIATION, CRITERION=HASHIN, ALPHA, XT, XC, YT, YC, SL, ST
-            
-                https://classes.engineering.wustl.edu/2009/spring/mase5513/abaqus/
-                docs/v6.6/books/usb/default.htm?startat=pt05ch19s03abm41.html
-                
-                Use the following option to define the damage evolution law:
-                *DAMAGE EVOLUTION, TYPE=ENERGY, SOFTENING=LINEAR, Gft, Gfc, Gmt, Gmc
-                
-                The 4 values in `table` are energies dissipated during damage for 
-                fiber tension, fiber compression, matrix tension, 
-                and matrix compression failure modes, respectively.
 
-                https://classes.engineering.wustl.edu/2009/spring/mase5513/abaqus/
-                docs/v6.6/books/usb/default.htm?startat=pt05ch19s03abm42.html
-            
-            '''
-            # 1.272 g/cm^3 in the N-mm system, i.e., tonne/mm^3
-            self.model.materials['IM7/8551-7'].Density(table=((1.272E-9, ), ))
-            
-            self.model.materials['IM7/8551-7'].HashinDamageInitiation(table=((
-                2560.0, 1590.0, 73.0, 185.0, 90.0, 92.5), ), alpha=1.0)
-            
-            self.model.materials['IM7/8551-7'].hashinDamageInitiation.DamageEvolution(
-                type=ENERGY, table=((92.0, 80.0, 0.21, 0.8), )) # kJ/m^2 (compatible with N/mm)
+            self.create_hashin_damage('IM7/8551-7')
 
     def create_material_steel(self, unit_length='mm'):
         '''
-        Create material: Steel
-        
-        Parameters
-        --------------
-        unit_length: str
-            'm' or 'mm', unit of length in the Abaqus model
+        Create material: Steel. See `create_material`.
         '''
-        self.model.Material(name='Steel')
-        
-        if unit_length == 'm':
-        
-            self.model.materials['Steel'].Density(table=((7.8E3, ), ))      # (Density (kg/m^3))
-            self.model.materials['Steel'].Elastic(table=((2.1E11, 0.3),))   # (Young's modulus (N/m^2), Poisson ratio)
-            self.model.materials['Steel'].Plastic(scaleStress=None, 
-                table=((3.00E8, 0.0), (3.50E8, 0.025), (3.75E8, 0.1),       # (Yield stress (N/m^2), Plastic strain)
-                       (3.94E8, 0.2), (4.00E8, 0.35)))
-            
-        elif unit_length == 'mm':
-            
-            self.model.materials['Steel'].Density(table=((7.8E-9, ), ))     # (Density (tonne/mm^3))
-            self.model.materials['Steel'].Elastic(table=((2.1E5, 0.3),))    # (Young's modulus (N/mm^2), Poisson ratio)
-            self.model.materials['Steel'].Plastic(scaleStress=None, 
-                table=((3.00E2, 0.0), (3.50E2, 0.025), (3.75E2, 0.1),       # (Yield stress (N/mm^2), Plastic strain)
-                       (3.94E2, 0.2), (4.00E2, 0.35)))
-
-        else:
-            
-            print('ERROR [create_material_steel]:')
-            print('    Wrong unit_length input:', unit_length)
-            print('    Should only be m or mm')
-            
-            raise Exception()
+        self.create_material('Steel', unit_length=unit_length)
 
     def create_material_titanium(self, unit_length='mm'):
         '''
-        Create material: Ti-6Al-4V
-        
-        https://doi.org/10.1016/j.ijimpeng.2019.04.025
-        
-        Parameters
-        --------------
-        unit_length: str
-            'm' or 'mm', unit of length in the Abaqus model
+        Create material: Ti-6Al-4V. See `create_material`.
         '''
-        self.model.Material(name='Ti-6Al-4V')
-        
-        if unit_length == 'm':
-        
-            self.model.materials['Ti-6Al-4V'].Density(table=((4.48E3, ), ))     # (Density (kg/m^3))
-            self.model.materials['Ti-6Al-4V'].Elastic(table=((1.287E11, 0.33),))# (Young's modulus (N/m^2), Poisson ratio)
-            self.model.materials['Ti-6Al-4V'].Plastic(scaleStress=None, 
-                table=((1.085E9, 0.00), (1.093E9, 0.02),                    # (Yield stress (N/m^2), Plastic strain)
-                       (1.123E9, 0.04), (1.155E9, 0.06),))
-            
-        elif unit_length == 'mm':
-            
-            self.model.materials['Ti-6Al-4V'].Density(table=((4.48E-9, ), ))    # (Density (tonne/mm^3))
-            self.model.materials['Ti-6Al-4V'].Elastic(table=((1.287E5, 0.33),)) # (Young's modulus (N/mm^2), Poisson ratio)
-            self.model.materials['Ti-6Al-4V'].Plastic(scaleStress=None, 
-                table=((1.085E3, 0.00), (1.093E3, 0.02),                    # (Yield stress (N/mm^2), Plastic strain)
-                       (1.123E3, 0.04), (1.155E3, 0.06),))
-
-        else:
-            
-            print('ERROR [create_material_titanium]:')
-            print('    Wrong unit_length input:', unit_length)
-            print('    Should only be m or mm')
-            
-            raise Exception()
+        self.create_material('Ti-6Al-4V', unit_length=unit_length)
 
     def create_section_steel(self):
         '''
-        Create section: Steel
+        Create section: Steel. See `create_section`.
         '''
-        self.model.HomogeneousSolidSection(name='Steel', material='Steel', thickness=None)
+        self.create_section('Steel')
 
     def create_section_titanium(self):
         '''
-        Create section: Ti-6Al-4V
+        Create section: Ti-6Al-4V. See `create_section`.
         '''
-        self.model.HomogeneousSolidSection(name='Ti-6Al-4V', material='Ti-6Al-4V', thickness=None)
+        self.create_section('Ti-6Al-4V')
 
     def create_section_IM785517(self):
         '''
-        Create section: IM7/8551-7
+        Create section: IM7/8551-7. See `create_section`.
         '''
-        self.model.HomogeneousSolidSection(name='IM7/8551-7', material='IM7/8551-7', thickness=None)
+        self.create_section('IM7/8551-7')
 
     def write_IM785517_property_table_inp(self, method='UMAT', fname_input='Job_1.inp'):
         '''
@@ -764,25 +813,6 @@ class Model(object):
             maxInc=         maxInc, 
             nlgeom=         nlgeom)
         
-    def create_dynamic_step(self, nlgeom=False):
-        '''
-        Create a dynamic analysis step.
-        
-        When conducting dynamic simulations, the element type needs to be 
-        selected from the 'explicit' elemLibrary.
-        '''
-        if nlgeom:
-            nlgeom = ON
-        else:
-            nlgeom = OFF
-        
-        self.model.ExplicitDynamicsStep(
-            name=               'Loading', 
-            previous=           'Initial', 
-            description=        'Dynamic (explicit) simulation', 
-            nlgeom=             nlgeom, 
-            improvedDtMethod=   ON)
-
     @staticmethod
     def write_static_step_inp(fname_input='Job_1.inp', 
                 timePeriod=1.0, initialInc=0.01, minInc=1E-15, maxInc=0.1):
@@ -969,16 +999,6 @@ class Model(object):
 
     #* =============================================
     #* Abaqus Load functions
-    def create_amplitude(self):
-        '''
-        Create amplitude functions
-        '''
-        self.model.TabularAmplitude(name='Constant-Amp', timeSpan=STEP,
-                smooth=SOLVER_DEFAULT, data=((0.0, 1.0), (1.0, 1.0)))
-        
-        self.model.TabularAmplitude(name='Ramp-Amp', timeSpan=STEP,
-                smooth=SOLVER_DEFAULT, data=((0.0, 0.0), (1.0, 1.0)))
-    
     def create_reference_point(self, x, y, z, name_rp):
         '''
         Create a reference point feature in Assembly by coordinates, and specify its name
@@ -1091,30 +1111,6 @@ class Model(object):
         viewport.view.rotate(xAngle=20, yAngle=60, zAngle=10, mode=TOTAL)
         session.graphicsOptions.setValues(backgroundStyle=SOLID, backgroundColor='#FFFFFF')
         session.viewports["Viewport: 1"].viewportAnnotationOptions.setValues(compass=OFF)
-
-    def set_view_fixed_origin(self):
-        '''
-        Set Abaqus view where the location of the origin (0,0,0) is fixed.
-        '''
-        session.View(name='User-1', 
-            nearPlane=2549.1, farPlane=4259.2, 
-            width=1669.3, height=809, 
-            projection=PERSPECTIVE, 
-            cameraPosition=(-1797.7, 1551.9, 2152.4), 
-            cameraUpVector=(0.42948, 0.88149, -0.19628), 
-            cameraTarget=(771.82, -44.15, 607.24), 
-            viewOffsetX=-3.0688, viewOffsetY=-3.6258, autoFit=OFF)
-        
-        session.View(name='User-2', 
-            nearPlane=2962.9, farPlane=5321.3, 
-            width=2342.8, height=1207.5, 
-            projection=PERSPECTIVE, 
-            cameraPosition=(-2122.3, 2246.5, 3284.7), 
-            cameraUpVector=(0.51875, 0.82747, -0.21495), 
-            cameraTarget=(839.78, -81.679, 1470.9), 
-            viewOffsetX=38.909, viewOffsetY=-64.822, autoFit=OFF)
-        
-        session.viewports['Viewport: 1'].view.setValues(session.views['User-1'])
 
     @staticmethod
     def save_cae(pathName):

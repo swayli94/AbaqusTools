@@ -19,23 +19,46 @@ i.e., the creation of an instance of :py:class:`Model <AbaqusTools.model.Model>`
     :linenos: 
     :pyobject: Model.setup_property
 
-The following code blocks show examples of the creation of materials and sections,
-these examples are built-in functions of the :py:class:`Model <AbaqusTools.model.Model>` class.
+Material data is kept separately from the Abaqus API calls that consume it.
+The material cards live in :py:mod:`AbaqusTools.materials` as plain dictionaries,
+stored in the N-mm-tonne unit system, and
+:py:meth:`create_material <AbaqusTools.model.Model.create_material>` turns an
+entry of that library into an Abaqus material:
+
+.. code-block:: python
+    :linenos:
+
+    def setup_property(self):
+
+        self.create_material('IM7/8551-7', elastic_type='ENGINEERING_CONSTANTS')
+        self.create_section('IM7/8551-7')
+
+        self.create_material('Ti-6Al-4V')
+        self.create_section('Ti-6Al-4V')
 
 .. literalinclude:: ../../../AbaqusTools/model.py
     :language: python
-    :linenos: 
-    :pyobject: Model.create_material_IM785517
+    :linenos:
+    :pyobject: Model.create_material
 
 .. literalinclude:: ../../../AbaqusTools/model.py
     :language: python
-    :linenos: 
-    :pyobject: Model.create_material_steel
+    :linenos:
+    :pyobject: Model.create_section
 
-.. literalinclude:: ../../../AbaqusTools/model.py
+Adding a material is a matter of adding an entry to
+``AbaqusTools.materials.MATERIAL_LIBRARY``, not of adding a method. Each entry
+declares its tables together with the indices of the columns that carry a stress
+unit, so that ``unit_length='m'`` can convert them:
+
+.. literalinclude:: ../../../AbaqusTools/materials.py
     :language: python
-    :linenos: 
-    :pyobject: Model.create_section_steel
+    :linenos:
+    :start-after: MATERIAL_LIBRARY = {
+    :end-before: 'Ti-6Al-4V': {
+
+Because :py:mod:`AbaqusTools.materials` imports nothing from Abaqus, it can also
+be read by post-processing scripts running in a normal Python interpreter.
 
 
 The section assignment and composite layup creation are defined in the :py:class:`Part <AbaqusTools.part.Part>` class,

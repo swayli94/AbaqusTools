@@ -163,27 +163,23 @@ class WingboxModel(Model):
                     'outputAtPlyBottom': False}
         raise ValueError('Invalid layup_output_ply_locations: %s' % mode)
 
-    def _create_material_aluminum_7075(self):
+    def _create_metallic_rib_material(self):
         '''
-        Create an isotropic aluminum alloy material for metallic ribs.
+        Create the isotropic material for metallic ribs.
 
-        Units follow the rest of the model, i.e., N, mm, tonne, so the density
-        is 2.81 g/cm^3 expressed in tonne/mm^3.
+        `pMesh['rib_material_name']` must be a key of
+        `AbaqusTools.materials.MATERIAL_LIBRARY`; add an entry there to use
+        another alloy. Units follow the rest of the model, i.e., N, mm, tonne.
         '''
-        material_name = str(self.pMesh.get('rib_material_name', 'Aluminum-7075'))
-        if material_name in self.model.materials:
-            return
-        self.model.Material(name=material_name)
-        self.model.materials[material_name].Density(table=((2.81E-9, ), ))
-        self.model.materials[material_name].Elastic(table=((7.10E4, 0.33), ))
+        self.create_material(str(self.pMesh.get('rib_material_name', 'Aluminum-7075')))
 
     def initialization(self):
-        
+
         self.model = mdb.models[str(self.name_model)]
-        
+
         self.create_material_IM785517(elastic_type='ENGINEERING_CONSTANTS')
         if str(self.pMesh.get('rib_material_type', 'composite')).lower() in ALUMINUM_RIB_TYPES:
-            self._create_material_aluminum_7075()
+            self._create_metallic_rib_material()
 
     def setup_parts(self):
         
