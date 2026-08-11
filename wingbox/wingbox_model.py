@@ -809,6 +809,35 @@ if __name__ == '__main__':
     model.set_view()
     model.save_cae('WingBox.cae')
 
+    #* Total mass of the model (optimisation objective).  The composite
+    #* material is created without a density card (see
+    #* Model.create_material_IM785517), so assembly getMassProperties()
+    #* cannot return a mass; compute it from the per-part volumes (exact
+    #* shell thickness x area, including the non-design thickness factors)
+    #* and the library densities instead.
+    from AbaqusTools.materials import MATERIAL_LIBRARY
+    density_composite = float(MATERIAL_LIBRARY[
+        str(pMesh.get('material_name', 'IM7/8551-7'))]['density'])
+    density_rib = float(MATERIAL_LIBRARY[
+        str(pMesh.get('rib_material_name', 'Aluminum-7075'))]['density'])
+
+    volume_of_part = {}
+    mass_tonne = 0.0
+    for name_part in model.model.parts.keys():
+        volume = float(model.model.parts[name_part].getMassProperties()['volume'])
+        density = density_rib if name_part.startswith('rib_') else density_composite
+        volume_of_part[name_part] = volume
+        mass_tonne += volume*density
+    with open(name_job + '_mass.json', 'w') as f:
+        json.dump({
+            'mass_tonne': mass_tonne,
+            'mass_kg': mass_tonne*1.0e3,
+            'volume_mm3_of_part': volume_of_part,
+            'density_composite_tonne_per_mm3': density_composite,
+            'density_rib_tonne_per_mm3': density_rib,
+        }, f, indent=2)
+    print('>>> MASS %s: %.6f tonne (%.3f kg)' % (name_job, mass_tonne, mass_tonne*1.0e3))
+
     execution_mode = str(parameters.get('execution_mode', 'default')).lower()
     if execution_mode in ('build', 'build_only', 'build-only'):
         pass
