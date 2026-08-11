@@ -822,21 +822,82 @@ if __name__ == '__main__':
         str(pMesh.get('rib_material_name', 'Aluminum-7075'))]['density'])
 
     volume_of_part = {}
-    mass_tonne = 0.0
+    mass_total_tonne = 0.0
     for name_part in model.model.parts.keys():
         volume = float(model.model.parts[name_part].getMassProperties()['volume'])
         density = density_rib if name_part.startswith('rib_') else density_composite
         volume_of_part[name_part] = volume
-        mass_tonne += volume*density
+        mass_total_tonne += volume*density
+
+    #* The center wingbox (bay 0, between the fixed root extension and the
+    #* inner-wing root) is a fixed, non-design region included only to give
+    #* the inner wing a proper root boundary condition, so its mass must not
+    #* enter the objective.  Its laminate is the current design layup with
+    #* the non-design thickness factor, i.e., it scales with the design and
+    #* has to be subtracted per design.  getMassProperties(regions=...)
+    #* crashes CAE on this model, so the bay-0 composite volume is assembled
+    #* from the face areas and the section thicknesses instead.
+    def laminate_thickness(params):
+        t = float(params.get('ply_thickness', pMesh['ply_thickness']))
+        n = len(params['layup_orientAngles'])
+        if params.get('layup_symmetric', False):
+            n *= 2
+        return t*n
+
+    non_design_region = pMesh.get('non_design_region', {})
+    thickness_factors = non_design_region.get('thickness_factor', {})
+    component_thickness = {
+        'cover_upper': laminate_thickness(pMesh['cover']['upper'])
+                       * float(thickness_factors.get('cover', 1.0)),
+        'cover_lower': laminate_thickness(pMesh['cover']['lower'])
+                       * float(thickness_factors.get('cover', 1.0)),
+        'spar': laminate_thickness(pMesh['spar'][0])
+                * float(thickness_factors.get('spar', 1.0)),
+        'stringer': laminate_thickness(pMesh['stringer'])
+                    * float(thickness_factors.get('stringer', 1.0)),
+    }
+
+    volume_center = 0.0
+    area_center_of_component = {}
+    part_lofting = model.model.parts['lofting']
+    for name_surface in part_lofting.surfaces.keys():
+        name_surface = str(name_surface)
+        if 'wingbox0' not in name_surface:
+            continue
+        tag = name_surface.split('wingbox0_', 1)[1]
+        if tag.startswith('stringer'):
+            component = 'stringer'
+        elif tag.startswith('spar'):
+            component = 'spar'
+        elif tag in component_thickness:
+            component = tag
+        else:
+            raise ValueError('Unrecognised center-wingbox surface: %s' % name_surface)
+        area = float(sum([f.getSize() for f in part_lofting.surfaces[name_surface].faces]))
+        area_center_of_component[component] = \
+            area_center_of_component.get(component, 0.0) + area
+        volume_center += area*component_thickness[component]
+    if area_center_of_component and 'rib_0' in model.model.parts.keys():
+        volume_center_rib = volume_of_part['rib_0']
+    else:
+        volume_center_rib = 0.0
+    mass_center_tonne = volume_center*density_composite \
+        + volume_center_rib*density_rib
+    mass_tonne = mass_total_tonne - mass_center_tonne
+
     with open(name_job + '_mass.json', 'w') as f:
         json.dump({
             'mass_tonne': mass_tonne,
             'mass_kg': mass_tonne*1.0e3,
+            'mass_center_wingbox_kg': mass_center_tonne*1.0e3,
+            'mass_total_kg': mass_total_tonne*1.0e3,
             'volume_mm3_of_part': volume_of_part,
+            'area_mm2_center_wingbox_of_component': area_center_of_component,
             'density_composite_tonne_per_mm3': density_composite,
             'density_rib_tonne_per_mm3': density_rib,
         }, f, indent=2)
-    print('>>> MASS %s: %.6f tonne (%.3f kg)' % (name_job, mass_tonne, mass_tonne*1.0e3))
+    print('>>> MASS %s: %.6f tonne (%.3f kg; center wingbox %.3f kg excluded)'
+          % (name_job, mass_tonne, mass_tonne*1.0e3, mass_center_tonne*1.0e3))
 
     execution_mode = str(parameters.get('execution_mode', 'default')).lower()
     if execution_mode in ('build', 'build_only', 'build-only'):

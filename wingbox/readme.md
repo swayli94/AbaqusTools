@@ -73,12 +73,17 @@ points of each failure index, i.e., the through-thickness envelope, and writes
   shape of the static step, and the envelope as `<VARIABLE>_MAX` element
   fields.
 
-Every model build also writes `<job>_mass.json`: the total mass from the
-per-part volumes (`getMassProperties`, exact shell thickness × area,
+Every model build also writes `<job>_mass.json`: the structural mass from
+the per-part volumes (`getMassProperties`, exact shell thickness × area,
 including the non-design thickness factors) times the material-library
-densities.  The composite material is created without a density card (see
-`Model.create_material_IM785517`), so the assembly mass property itself is
-unavailable and the mass is assembled per part.
+densities, excluding the fixed center wingbox (bay 0 and the root rib
+`rib_0`, over-built to provide the root boundary condition and not part of
+the structural weight; its composite volume is assembled from face areas ×
+thickened section thicknesses because `getMassProperties(regions=...)`
+crashes CAE on this model).  `mass_center_wingbox_kg` and `mass_total_kg`
+are included for reference.  The composite material is created without a
+density card (see `Model.create_material_IM785517`), so the assembly mass
+property itself is unavailable and the mass is assembled per part.
 
 The slim database is typically one to two orders of magnitude smaller than the
 source, which can then be deleted:
