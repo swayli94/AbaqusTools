@@ -95,3 +95,32 @@ Both the built-in Hashin criteria (`HSNFTCRT`, `HSNFCCRT`, `HSNMTCRT`,
 `HSNMCCRT`) and the LaRC05 user-defined output variables (`UVARM1`, `UVARM2`,
 ...) are recognised, so the same post-processing applies after switching
 `pMesh["failure_model"]` to `LaRC05`.
+
+## Fast post-processing for optimisation loops
+
+`postprocess_failure.py` scans the section-point fields of the whole output
+database, which dominates its run time for a many-ply model.  When only the
+design-evaluation scalars are needed, `postprocess.mode: "fast"` runs
+`extract_results.py` instead, which reads none of them:
+
+- maximum LaRC05 failure index — module `larc05Track` in `uvarm.f90`
+  accumulates the uncapped `maxval(plyIndexes)` of every material point
+  during the analysis; each MPI rank rewrites its own one-line
+  `larc05_fi_track_<pid>.txt` whenever the maximum improves, and the script
+  merges the per-rank files.  The feature is opt-in through the environment
+  variable `LARC05_TRACK_DIR`, which `run.py` sets to the submission
+  directory (the solver runs in the scratch directory); unset, the tracking
+  code is inert and creates no files.  A step change resets the running
+  maximum and records are only kept when `GETVRM` succeeded and
+  `DTIME > 1e-30`, because UVARM is also called during the linear
+  perturbation (buckling) step with a meaningless stress state.
+- buckling eigenvalues — parsed from `<job>.dat`.
+- wing tip maximum displacement — history output `U` of the `Tip` node set
+  (`wingbox_model._create_tip_node_set()`, nodes of the largest-z
+  cross-section), falling back to a scan of the nodal U field when the
+  history request is absent.
+
+The summary JSON has the same schema in both modes, and the fast
+`global_max.UVARM6` matches the envelope value of the full mode.  For the
+inner-wingbox parameter file the fast mode reduces the post-processing from
+~9 min to ~0.5 min.

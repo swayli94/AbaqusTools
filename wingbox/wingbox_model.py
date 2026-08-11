@@ -594,6 +594,39 @@ class WingboxModel(Model):
                         follower=OFF,
                         localCsys=None)
         
+    def _create_tip_node_set(self, tolerance=1.0):
+        '''
+        Assembly-level node set of the wing tip cross-section.
+
+        The wing spans in the global z direction, so the tip is the set of
+        nodes with the largest z coordinate (within `tolerance` mm).  The
+        history output of this set is what the fast post-processing
+        (`extract_results.py`) reads for the tip displacement, instead of
+        scanning the full nodal U field of the output database.
+        '''
+        a = self.rootAssembly
+
+        z_max = None
+        for name_instance in a.instances.keys():
+            for node in a.instances[name_instance].nodes:
+                if z_max is None or node.coordinates[2] > z_max:
+                    z_max = node.coordinates[2]
+        if z_max is None:
+            return None
+
+        labels_of_instance = []
+        for name_instance in a.instances.keys():
+            labels = [node.label for node in a.instances[name_instance].nodes
+                      if node.coordinates[2] >= z_max - tolerance]
+            if labels:
+                labels_of_instance.append((name_instance, tuple(labels)))
+
+        a.SetFromNodeLabels(name='Tip', nodeLabels=tuple(labels_of_instance))
+        print('>>> TIP_NODE_SET %d nodes at z = %.1f mm: %s'
+              % (sum([len(item[1]) for item in labels_of_instance]), z_max,
+                 {item[0]: len(item[1]) for item in labels_of_instance}))
+        return a.sets['Tip']
+
     def setup_outputs(self):
 
         analysis_type = self._get_analysis_type()
@@ -690,6 +723,16 @@ class WingboxModel(Model):
                 # the perturbation step; Buckling-Output supplies the mode
                 # shape there.
                 static_output.deactivate(buckle_step_name)
+
+        # Wing tip displacement for the design evaluation: history output of
+        # U for the tip cross-section nodes only, a few kilobytes of data
+        # that the fast post-processing reads instead of scanning the full
+        # nodal U field.
+        tip_set = self._create_tip_node_set()
+        if tip_set is not None:
+            self.model.HistoryOutputRequest(
+                name='Tip-Output', createStepName=static_step_name,
+                variables=('U',), region=tip_set, frequency=LAST_INCREMENT)
 
         # A metallic rib carries no composite layup, so it appears in none of
         # the layup requests below and its stress field is the only way to

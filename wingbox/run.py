@@ -25,11 +25,13 @@ def submits_job_in_cae(parameters):
 
 def get_postprocess_parameters(parameters):
     '''
-    Get the failure post-processing settings, see `postprocess_failure.py`.
+    Get the failure post-processing settings, see `postprocess_failure.py`
+    (mode 'full') and `extract_results.py` (mode 'fast').
     '''
     postprocess = parameters.get('postprocess', {})
     return {
         'enabled': bool(postprocess.get('enabled', True)),
+        'mode': str(postprocess.get('mode', 'full')).lower(),
         'slim_odb': bool(postprocess.get('slim_odb', True)),
         'delete_source_odb': bool(postprocess.get('delete_source_odb', False)),
     }
@@ -80,6 +82,9 @@ if __name__ == '__main__':
         # user subroutine is not thread-safe (module-level state), while the
         # linear solver still uses all cpus.
         print('>>> Running job with LaRC05 failure model...')
+        #* The solver runs in the scratch directory; tell module larc05Track
+        #* in uvarm.f90 where to write larc05_fi_track_<pid>.txt.
+        os.environ['LARC05_TRACK_DIR'] = os.path.abspath('.')
         command = ('abaqus interactive job=%s user=uvarm.f90 cpus=%d '
                    'standard_parallel=solver'
                    % (name_job, parameters['pRun']['numCpus']))
@@ -90,14 +95,19 @@ if __name__ == '__main__':
 
     t1 = time.time()
 
-    #* Reduce the analysis output database to the per-element failure envelope
+    #* Reduce the analysis output to the design-evaluation numbers
     postprocess = get_postprocess_parameters(parameters)
     if postprocess['enabled'] and os.path.isfile(name_job + '.odb'):
-        command = 'abaqus python postprocess_failure.py --job %s' % name_job
-        if postprocess['slim_odb']:
-            command += ' --slim-odb'
-        if postprocess['delete_source_odb']:
-            command += ' --delete-source-odb'
+        if postprocess['mode'] == 'fast':
+            #* max FI from the UVARM tracking file, eigenvalues from the
+            #* data file, tip displacement from the nodal U field.
+            command = 'abaqus python extract_results.py --job %s' % name_job
+        else:
+            command = 'abaqus python postprocess_failure.py --job %s' % name_job
+            if postprocess['slim_odb']:
+                command += ' --slim-odb'
+            if postprocess['delete_source_odb']:
+                command += ' --delete-source-odb'
         print('>>> %s' % command)
         status = os.system(command)
         if status != 0:

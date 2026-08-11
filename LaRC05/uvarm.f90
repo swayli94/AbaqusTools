@@ -1,5 +1,64 @@
 include "plyTools.f90"
 include "failureCriteria.f90"
+
+module larc05Track
+!----------------------------------------------------------------------
+! runfile addition (5-wingbox-runfile): running global maximum failure
+! index of the whole structure, accumulated during the UVARM calls for
+! fast post-processing.
+!
+! The feature is OPT-IN: it activates only when the environment variable
+! LARC05_TRACK_DIR is set (run.py of the wingbox runfile sets it to the
+! submission directory).  Without it the tracking code is inert - no
+! files are created and no unit numbers are claimed, so other tasks can
+! use this uvarm.f90 unchanged.
+!
+! With domain-based parallelization every MPI rank calls UVARM for its
+! own elements, so each rank accumulates its domain maximum and writes
+! its own tracking file (process id in the file name); the global
+! maximum is the largest per-rank value, merged by extract_results.py.
+!----------------------------------------------------------------------
+    implicit none
+    logical    :: trackEnabled = .false. ! feature active (env var set)
+    logical    :: trackChecked = .false. ! enable check done
+    real(8)    :: trackMaxFI  = 0.0d0   ! running global maximum FI
+    integer    :: trackElem   = 0       ! element with the maximum
+    integer    :: trackLayer  = 0       ! ply with the maximum
+    integer    :: trackStep   = -1      ! step of the running maximum
+    character(len=1024) :: trackPath = ' ' ! submission-dir path of the file
+    integer,      parameter :: TRACK_UNIT = 108
+    character(*), parameter :: TRACK_PREFIX = 'larc05_fi_track_'
+
+contains
+
+    subroutine trackInitPath()
+    !------------------------------------------------------------------
+    ! Enable the tracking and compose the file path of this MPI rank:
+    ! <LARC05_TRACK_DIR>/<TRACK_PREFIX><pid>.txt.  The solver runs in
+    ! the scratch directory; run.py passes the submission directory
+    ! through LARC05_TRACK_DIR.  The variable is also the on/off flag:
+    ! without it the feature stays disabled.
+    !------------------------------------------------------------------
+        interface
+            function getpid() bind(C, name='getpid')
+                use iso_c_binding
+                integer(c_int) :: getpid
+            end function getpid
+        end interface
+        character(len=1024) :: trackDir
+        integer             :: pathLen, pathStat
+
+        call get_environment_variable('LARC05_TRACK_DIR', trackDir,     &
+            & pathLen, pathStat)
+        if (pathStat .NE. 0 .OR. pathLen .LE. 0) return
+
+        write(trackPath, '(A,"/",A,I0,".txt")')                         &
+            trackDir(1:pathLen), TRACK_PREFIX, int(getpid())
+        trackEnabled = .true.
+
+    end subroutine trackInitPath
+
+end module larc05Track
     
 SUBROUTINE UVARM( UVAR,DIRECT,T,TIME,DTIME,CMNAME,ORNAME,NUVARM,    &
     &             NOEL,NPT,LAYER,KSPT,KSTEP,KINC,NDI,NSHR,COORD,    &
@@ -45,6 +104,7 @@ SUBROUTINE UVARM( UVAR,DIRECT,T,TIME,DTIME,CMNAME,ORNAME,NUVARM,    &
 
     use plyTools
     use failureCriteria
+    use larc05Track
     
     include 'aba_param.inc'
 
@@ -236,6 +296,43 @@ SUBROUTINE UVARM( UVAR,DIRECT,T,TIME,DTIME,CMNAME,ORNAME,NUVARM,    &
         UVAR(6) = maxFailureIndex
         if (LIMIT_UVARM5 .GT. ZERO) then
             UVAR(6) = min(LIMIT_UVARM5, UVAR(6))
+        end if
+    end if
+
+    ! runfile addition: accumulate the global maximum failure index
+    ! (uncapped) for the fast post-processing path, see module
+    ! larc05Track above.  The feature is opt-in via the environment
+    ! variable LARC05_TRACK_DIR and inert otherwise.  When active, the
+    ! rank-local maximum is rewritten to its tracking file whenever it
+    ! improves.  Guards:
+    ! - step change resets the running maximum: UVARM is also called
+    !   during a linear perturbation step (buckling), where the stress
+    !   state is meaningless; the evaluation of interest is the last
+    !   (static loading) step, matching the last-frame envelope;
+    ! - JRCD: only when the stresses were retrieved successfully;
+    ! - DTIME: perturbation increments advance with a near-zero time
+    !   increment (1e-36), a general static step uses real increments.
+    if (.not. trackChecked) then
+        call trackInitPath()
+        trackChecked = .true.
+    end if
+    if (trackEnabled) then
+        if (KSTEP .NE. trackStep) then
+            trackMaxFI = ZERO
+            trackElem  = 0
+            trackLayer = 0
+            trackStep  = KSTEP
+        end if
+        if (JRCD .EQ. 0 .AND. DTIME .GT. 1.0D-30                              &
+            & .AND. maxval(plyIndexes) .GT. trackMaxFI) then
+            trackMaxFI = maxval(plyIndexes)
+            trackElem  = NOEL
+            trackLayer = LAYER
+            open(unit=TRACK_UNIT, file=trim(trackPath), status='replace',   &
+                & action='write')
+            write(TRACK_UNIT,'(I0,1X,I0,1X,ES14.6,1X,I0,1X,I0)')            &
+                KSTEP, KINC, trackMaxFI, trackElem, trackLayer
+            close(TRACK_UNIT)
         end if
     end if
     

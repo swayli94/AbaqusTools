@@ -10,8 +10,8 @@
 #   AbaqusTools/        the package folder (from the repository root)
 #   *.py                every python file of `wingbox/`, i.e., run.py,
 #                       wingbox_model.py, params.py, postprocess_failure.py,
-#                       lofting_part.py, rib_part.py, geometry.py, layup.py,
-#                       utils.py
+#                       extract_results.py, lofting_part.py, rib_part.py,
+#                       geometry.py, layup.py, utils.py
 #   BAC-NLF.dat         the airfoil referenced by `pGeo.sections[*].airfoil`
 #   <parameters>.json   the parameter file passed to this script
 #   *.f90               only for "failure_model": "LaRC05", the user
@@ -34,6 +34,7 @@ rm -f abaqus_acis.log abq.app_cache abaqus.rpt
 rm -f Job_*.odb Job_*.dat Job_*.msg Job_*.sta Job_*.log Job_*.prt Job_*.inp
 rm -f Job_*.com Job_*.env Job_*.sim Job_*.stt Job_*.lck Job_*.odb_f
 rm -f Job_*_failure_envelope.npz Job_*_failure_summary.json
+rm -f larc05_fi_track_*.txt
 
 echo "wingbox: ${PARAMS}"
 
