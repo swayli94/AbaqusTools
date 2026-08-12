@@ -7,15 +7,18 @@ point fields of the output database (minutes for a 100-ply model).  It
 collects the three quantities of a design evaluation from cheap sources:
 
 - maximum LaRC05 failure index of the whole structure — read from
-  `larc05_fi_track.txt`, the tracking file written once per increment by
-  UEXTERNALDB in `uvarm.f90` (module larc05Track),
+  `larc05_fi_track_<pid>.txt`, the per-rank tracking files rewritten by
+  UVARM in `uvarm.f90` (module larc05Track) whenever a rank's running
+  maximum failure index increases (a legacy single `larc05_fi_track.txt`
+  is also accepted),
 - buckling eigenvalues — parsed from the `<job>.dat` text file,
 - wing tip maximum displacement — the nodal U field of the last static
   frame, the only field read from the output database.
 
-The summary is written to `<job>_failure_summary.json` with the same
-schema as `postprocess_failure.py`, so downstream scripts can consume
-either one.
+The summary is written to `<job>_failure_summary.json` with a schema
+compatible with `postprocess_failure.py` (the fast mode adds
+`max_fi_location` and omits `max_of_instance`), so downstream scripts can
+consume either one.
 
 Usage (Abaqus Python, no CAE license needed)
 --------------------------------------------

@@ -33,7 +33,8 @@ rm -f *.pyc *.rec *.exception fort* abaqus.rpy* *.cae *.jnl *.dbg *.rpy
 rm -f abaqus_acis.log abq.app_cache abaqus.rpt
 rm -f Job_*.odb Job_*.dat Job_*.msg Job_*.sta Job_*.log Job_*.prt Job_*.inp
 rm -f Job_*.com Job_*.env Job_*.sim Job_*.stt Job_*.lck Job_*.odb_f
-rm -f Job_*_failure_envelope.npz Job_*_failure_summary.json
+rm -f Job_*_failure_envelope.npz Job_*_failure_summary.json Job_*_mass.json
+rm -f Job_*.SMABulk Job_*.dmp.lnz.*
 rm -f larc05_fi_track_*.txt
 
 echo "wingbox: ${PARAMS}"

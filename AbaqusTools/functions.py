@@ -600,14 +600,28 @@ def load_parameters(json_name, dict_name="Geometry"):
     return dictionary
 
 def clean_pyc_files(path='.'):
-    
-    if platform.system() == 'Windows':
-        
-        os.system('del /f %s\\AbaqusTools\\*.pyc'%(path))
+    '''
+    Remove cached Python bytecode (`*.pyc` files and `__pycache__/`
+    directories) under the working folder.
 
-    else:
-        
-        os.system('rm -f %s/AbaqusTools/*.pyc')
+    Implemented in pure Python: the former shell one-liner never
+    substituted its `path` argument on POSIX (a literal `%s` reached the
+    shell), and it predated `__pycache__/` (Python 3 byte-cache layout).
+    '''
+    import shutil
+
+    for folder, dirs, files in os.walk(path):
+        for name in files:
+            if name.endswith('.pyc'):
+                try:
+                    os.remove(os.path.join(folder, name))
+                except OSError:
+                    pass
+        for name in list(dirs):
+            if name == '__pycache__':
+                shutil.rmtree(os.path.join(folder, name),
+                              ignore_errors=True)
+                dirs.remove(name)
 
 def clean_temporary_files(name_rpy=None):
     '''

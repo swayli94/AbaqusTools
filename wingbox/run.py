@@ -1,4 +1,5 @@
 
+import glob
 import os
 import platform
 import sys
@@ -51,9 +52,16 @@ if __name__ == '__main__':
 
     #* A stale output database of a previous run would otherwise be reduced and
     #* reported as if it belonged to this design.
-    for suffix in ('.odb', '_failure_envelope.npz', '_failure_summary.json'):
+    for suffix in ('.odb', '_failure_envelope.npz', '_failure_summary.json',
+                   '_mass.json'):
         if os.path.isfile(name_job + suffix):
             os.remove(name_job + suffix)
+
+    #* The LaRC05 tracking files are named per PID (`larc05_fi_track_<pid>.txt`)
+    #* and merged over *all* matches by `extract_results.py`, so leftovers from
+    #* an earlier run would silently raise this run's reported max FI.
+    for track_file in glob.glob('larc05_fi_track_*.txt'):
+        os.remove(track_file)
 
     if platform.system() == 'Windows':
         command = 'abaqus cae script=wingbox_model.py -- --params %s' % fname

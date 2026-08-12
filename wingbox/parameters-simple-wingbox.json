@@ -13,7 +13,6 @@
         "twist": 0.0,
         "airfoil": "BAC-NLF.dat",
         "t_cover": 4.0,
-        "r_rib": 8.0,
         "spars": [
           {
             "x": 0.2,
