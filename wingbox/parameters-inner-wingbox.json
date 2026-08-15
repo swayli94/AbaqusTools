@@ -1315,7 +1315,7 @@
     "output_mode": "optimisation",
     "layup_output_ply_locations": "all",
     "numEigen": 5,
-    "buckling_min_eigen": 1e-06,
+    "buckling_min_eigen": 0.1,
     "buckling_block_size": 10,
     "buckling_max_blocks": 100,
     "timePeriod": 1.0,
