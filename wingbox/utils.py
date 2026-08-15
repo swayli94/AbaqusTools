@@ -236,9 +236,15 @@ def transform_curve(x, y, scale=1.0, rotation=0.0, dx=0.0, dy=0.0, center=[0,0])
     angle = np.radians(rotation)
     cc = np.cos(angle)
     ss = np.sin(angle)
-    for i in range(n):
-        new_x[i] = new_x[i]*cc - new_y[i]*ss
-        new_y[i] = new_x[i]*ss + new_y[i]*cc
+    #* Both components come from the *pre-rotation* coordinates.  Writing
+    #* new_x first and then reading it back for new_y applies the second
+    #* row of the rotation matrix to an already-rotated x, which leaves an
+    #* O(angle^2) error in y: small enough to look plausible at a few
+    #* degrees of twist, and wrong everywhere.
+    old_x = np.array(new_x)
+    old_y = np.array(new_y)
+    new_x = old_x*cc - old_y*ss
+    new_y = old_x*ss + old_y*cc
 
     new_x += center[0] + dx
     new_y += center[1] + dy
