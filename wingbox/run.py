@@ -87,8 +87,11 @@ if __name__ == '__main__':
         # The LaRC05 deck is patched after the model is built, so the job is
         # submitted here instead of from inside Abaqus/CAE.
         # standard_parallel=solver keeps the element loop serial: the LaRC05
-        # user subroutine is not thread-safe (module-level state), while the
-        # linear solver still uses all cpus.
+        # user subroutine is not thread-safe, while the linear solver still
+        # uses all cpus.  Abaqus/Standard parallelises the element loop across
+        # threads of one process, and the subroutine keeps state that outlives
+        # a call for them to share -- module variables, and initialised locals,
+        # which Fortran gives implicit SAVE whether or not it is written.
         print('>>> Running job with LaRC05 failure model...')
         #* The solver runs in the scratch directory; tell module larc05Track
         #* in uvarm.f90 where to write larc05_fi_track_<pid>.txt.

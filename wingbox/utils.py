@@ -160,21 +160,29 @@ def rotate3d(points, alpha, beta, gamma, origin=[0, 0, 0]):
         points to be rotated
     
     alpha: float
-        first rotate alpha about the x-axis
+        rotation about the x-axis, applied last
     
     beta: float
-        then rotate beta about the y-axis
+        rotation about the y-axis, applied second
     
     gamma: float
-        at last, rotate gamma about the z-axis
+        rotation about the z-axis, applied first
         
     origin: list [3]
         the origin of rotation
         
     Returns
     ----------------
-    new_points: ndarray [:,3]
-        rotated points
+    new_points: ndarray [4,:]
+        rotated points in homogeneous coordinates, one point per *column*:
+        rows are x, y, z and the homogeneous 1.  Not the [:,3] of `points`;
+        take `new_points[:3].T` for that.
+        
+    Notes
+    ----------------
+    The product is `Rx @ Ry @ Rz @ P`, and the rightmost factor acts first,
+    so the rotations apply z, then y, then x -- the reverse of the order the
+    arguments are named in.
     '''
     # https://zhuanlan.zhihu.com/p/388164543
     
