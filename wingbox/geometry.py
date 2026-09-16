@@ -1012,6 +1012,22 @@ def get_primaryAxisVector_section(section, feature='rib'):
     return primary_axis_vector
     
 
+def _plot_layup_params(pMesh, params):
+    '''
+    Layup parameters to draw with, tolerant of the span-group format.
+
+    With spanwise layup groups a component's parameters map each group
+    name to that group's layup.  The drawn line width is illustrative, so
+    the first group's laminate stands for the component.  Without
+    `span_groups` the parameters are already a layup and pass through.
+    '''
+    if 'span_groups' not in pMesh:
+        return params
+    for group in pMesh['span_groups']:
+        return params[group]
+    return params
+
+
 def get_plot_line_widths(wing_section_geometry, pMesh=None):
     '''
     Line widths (mm) used to draw a wing section.
@@ -1028,6 +1044,7 @@ def get_plot_line_widths(wing_section_geometry, pMesh=None):
     pMesh: dict, None
         mesh/property parameters holding the `cover`, `spar` and `stringer`
         layups.  The non-design thickening of a bay is not applied here.
+        With spanwise layup groups, the first group's laminate is drawn.
 
     Returns
     ---------------
@@ -1057,14 +1074,17 @@ def get_plot_line_widths(wing_section_geometry, pMesh=None):
     cover = pMesh['cover']
     for side in ('upper', 'lower'):
         params = cover[side] if side in cover else cover
-        widths['cover_%s' % side] = get_laminate_thickness(params, ply_thickness)
+        widths['cover_%s' % side] = get_laminate_thickness(
+            _plot_layup_params(pMesh, params), ply_thickness)
 
     widths['spar'] = [
-        get_laminate_thickness(pMesh['spar'][j], ply_thickness)
+        get_laminate_thickness(
+            _plot_layup_params(pMesh, pMesh['spar'][j]), ply_thickness)
         for j in range(wsg.n_spars)]
 
     if wsg.n_stringers > 0:
-        widths['stringer'] = get_laminate_thickness(pMesh['stringer'], ply_thickness)
+        widths['stringer'] = get_laminate_thickness(
+            _plot_layup_params(pMesh, pMesh['stringer']), ply_thickness)
 
     return widths
 

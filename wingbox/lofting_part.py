@@ -72,6 +72,33 @@ def get_cover_layup_params(pMesh, side):
     return cover
 
 
+def get_span_group_layup_params(pMesh, params, i_section):
+    '''
+    Resolve a component's layup parameters to the span group of a bay.
+
+    Supports both:
+    - old format: no 'span_groups' in pMesh; `params` is the layup and is
+      returned unchanged, so parameter files written before the spanwise
+      split keep working;
+    - span-group format: `pMesh['span_groups']` maps each group name to
+      the bays it covers and `params` maps the same names to the group's
+      layup; the layup of the group covering bay `i_section` is returned.
+
+    A bay no group covers raises ValueError: it would otherwise be built
+    from a laminate that was never chosen for it.
+    '''
+    span_groups = pMesh.get('span_groups')
+    if span_groups is None:
+        return params
+    for group, bays in span_groups.items():
+        if int(i_section) in bays:
+            return params[group]
+    raise ValueError(
+        'No span group covers bay %d (span_groups: %s).'
+        % (int(i_section), span_groups)
+    )
+
+
 class LoftingPart(Part):
     '''
     Class for wingbox lofting part.
@@ -261,9 +288,52 @@ class LoftingPart(Part):
                     myPrt.ShellLoft(loftsections=tuple(loftsections), startCondition=NONE, endCondition=NONE)
                     self.rename_feature(myPrt, 'wingbox%d_stringer_%d_%s'%(i_section, j, side))
         
+        #* Adjacent web faces of one spar or stringer are exactly coplanar
+        #* when the planform has no twist gradient and a constant sweep,
+        #* and the loft kernel then keeps no junction edge at the shared
+        #* station.  The seeding and tie lookups in `create_set` need that
+        #* edge.  A web face that answers the mid-bay point of both
+        #* adjacent bays spans the station; partition it with the
+        #* station's datum plane.  Faces the kernel already split are
+        #* left alone, so the topology does not depend on the twist
+        #* gradient happening to be nonzero.
+        for i in range(1, n_sections - 1):
+            faces = []
+            for j in range(self.sections[i].n_spars):
+                faces += self._faces_spanning_station(myPrt, 'spar', j, i)
+            for j in range(self.sections[i].n_stringers):
+                for side in ['upper', 'lower']:
+                    faces += self._faces_spanning_station(
+                        myPrt, 'stringer', j, i, side=side)
+            if faces:
+                myPrt.PartitionFaceByDatumPlane(
+                    datumPlane=self.get_datum_by_name(myPrt, 'XYPLANE-%d' % i),
+                    faces=faces)
+        
         #* Delete the reference plane
         myPrt.setValues(geometryRefinement=EXTRA_FINE)
         del myPrt.features['reference_plane']
+
+    def _faces_spanning_station(self, myPrt, feature, index, i, side=None):
+        '''
+        Web faces of feature `index` that span the station plane at
+        section `i`, i.e. that answer the mid-bay lookup of both adjacent
+        bays.  The face recipes are the ones `create_set` uses for the
+        per-bay face sets.
+        '''
+        face_search_tolerance = self.pMesh.get('face_search_tolerance', 1E-2)
+        pts_left = mid_pts(
+            self.sections[i-1].get_selection_points(feature=feature, side=side, index=index),
+            self.sections[i].get_selection_points(feature=feature, side=side, index=index))
+        pts_right = mid_pts(
+            self.sections[i].get_selection_points(feature=feature, side=side, index=index),
+            self.sections[i+1].get_selection_points(feature=feature, side=side, index=index))
+        faces_left = self.get_faces(myPrt, pts_left,
+            getClosest=True, searchTolerance=face_search_tolerance)
+        faces_right = self.get_faces(myPrt, pts_right,
+            getClosest=True, searchTolerance=face_search_tolerance)
+        right_indices = set(f.index for f in faces_right)
+        return [f for f in faces_left if f.index in right_indices]
 
     def create_surface(self):
         '''
@@ -688,7 +758,9 @@ class LoftingPart(Part):
 
             # Cover faces
             for side in ['upper', 'lower']:
-                params = get_cover_layup_params(self.pMesh, side)
+                params = get_span_group_layup_params(
+                    self.pMesh, get_cover_layup_params(self.pMesh, side),
+                    i_section)
                 
                 primaryAxisVector = get_primaryAxisVector_spanwise(
                     self.sections, i_section, feature='cover', side=side)
@@ -710,6 +782,9 @@ class LoftingPart(Part):
             params = self.pMesh['spar']
             for j in range(sec0.n_spars):
 
+                params_j = get_span_group_layup_params(
+                    self.pMesh, params[j], i_section)
+
                 primaryAxisVector = get_primaryAxisVector_spanwise(
                     self.sections, i_section, feature='spar', index=j)
                 
@@ -718,16 +793,17 @@ class LoftingPart(Part):
                 create_shell_CompositeLayup_of_set(
                     myPrt=myPrt, name_set=name_set,
                     ply_thickness=get_design_region_ply_thickness(
-                        self.pMesh, params[j], 'spar', i_section),
-                    ply_angles=params[j]['layup_orientAngles'],
+                        self.pMesh, params_j, 'spar', i_section),
+                    ply_angles=params_j['layup_orientAngles'],
                     name_surface=name_set,
                     primaryAxisVector=primaryAxisVector,
-                    symmetric=params[j]['layup_symmetric'],
+                    symmetric=params_j['layup_symmetric'],
                     numIntPoints=self.pMesh['ply_numIntPts'],
                     material_name=material_name)
 
             # Stringer faces (web + flange per side, combined into one set)
-            params = self.pMesh['stringer']
+            params = get_span_group_layup_params(
+                self.pMesh, self.pMesh['stringer'], i_section)
             for j in range(sec0.n_stringers):
                 for side in ['upper', 'lower']:
 

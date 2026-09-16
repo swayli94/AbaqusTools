@@ -8,7 +8,7 @@ import json
 import numpy as np
 
 from AbaqusTools import Model, IS_ABAQUS
-from lofting_part import LoftingPart
+from lofting_part import LoftingPart, get_span_group_layup_params
 from rib_part import RibPart
 from rib_part import use_rib_face_tie_for_internal_spars
 from params import get_parameter_file, load_parameters, get_failure_model
@@ -838,6 +838,11 @@ if __name__ == '__main__':
     #* crashes CAE on this model, so the bay-0 composite volume is assembled
     #* from the face areas and the section thicknesses instead.
     def laminate_thickness(params):
+        #* The subtraction below is for bay 0 only, so resolve its span
+        #* group: under the span-group format `params` maps group name to
+        #* layup, and bay 0 follows the inboard group.  A parameter file
+        #* without span groups is read unchanged.
+        params = get_span_group_layup_params(pMesh, params, 0)
         t = float(params.get('ply_thickness', pMesh['ply_thickness']))
         n = len(params['layup_orientAngles'])
         if params.get('layup_symmetric', False):
