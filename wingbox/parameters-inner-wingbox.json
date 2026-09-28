@@ -768,13 +768,13 @@
       ],
       "ply_thickness": 0.125
     },
-    "pressure_upper_cover": 0.00655,
-    "pressure_lower_cover": 0.00655,
+    "pressure_upper_cover": 0.016375,
+    "pressure_lower_cover": 0.016375,
     "pressure_start_section": 1,
     "engine_pylon_section": 2,
     "engine_pylon_spar_index": 1,
-    "engine_weight_force": -117600.0,
-    "outboard_lift_force": 1234800.0,
+    "engine_weight_force": -294000.0,
+    "outboard_lift_force": 3087000.0,
     "outboard_lift_application": "engine_pylon_reference_point",
     "outboard_lift_eccentricity_mm": 0.0,
     "non_design_wingbox_sections": [
