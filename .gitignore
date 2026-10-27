@@ -1,0 +1,20 @@
+
+*.bat
+*.pyc
+*.rpy
+
+.vscode/
+backup/
+build/
+data/
+figure/
+
+temp*
+
+error-analysis*
+field-figure*
+
+.claude/settings.local.json
+
+# LaRC05/ is not tracked, although the user subroutines are needed to reproduce "failure_model": "LaRC05"
+LaRC05/

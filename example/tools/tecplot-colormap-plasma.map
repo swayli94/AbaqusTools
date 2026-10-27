@@ -1,0 +1,122 @@
+#!MC 1400
+# Created by Tecplot 360 build 14.0.2.33360
+$!GLOBALCOLORMAP  1
+  CONTOURCOLORMAP = USERDEF
+$!COLORMAPCONTROL 1 RESETTOFACTORY
+$!GLOBALCOLORMAP  1
+  USERDEFINED
+    {
+	NUMCONTROLPOINTS = 7
+    CONTROLPOINT 1
+      {
+      COLORMAPFRACTION = 0
+      LEADRGB
+        {
+        R = 240
+        G = 249
+        B = 33
+        }
+      TRAILRGB
+        {
+        R = 240
+        G = 249
+        B = 33
+        }
+      }
+    CONTROLPOINT 2
+      {
+      COLORMAPFRACTION = 0.1667
+      LEADRGB
+        {
+        R = 253
+        G = 180
+        B = 47
+        }
+      TRAILRGB
+        {
+        R = 253
+        G = 180
+        B = 47
+        }
+      }
+    CONTROLPOINT 3
+      {
+      COLORMAPFRACTION = 0.3333
+      LEADRGB
+        {
+        R = 237
+        G = 121
+        B = 83
+        }
+      TRAILRGB
+        {
+        R = 237
+        G = 121
+        B = 83
+        }
+      }
+    CONTROLPOINT 4
+      {
+      COLORMAPFRACTION = 0.5
+      LEADRGB
+        {
+        R = 204
+        G = 71
+        B = 120
+        }
+      TRAILRGB
+        {
+        R = 204
+        G = 71
+        B = 120
+        }
+      }
+    CONTROLPOINT 5
+      {
+      COLORMAPFRACTION = 0.6667
+      LEADRGB
+        {
+        R = 156
+        G = 23
+        B = 158
+        }
+      TRAILRGB
+        {
+        R = 156
+        G = 23
+        B = 158
+        }
+      }
+    CONTROLPOINT 6
+      {
+      COLORMAPFRACTION = 0.8333
+      LEADRGB
+        {
+        R = 92
+        G = 1
+        B = 166
+        }
+      TRAILRGB
+        {
+        R = 92
+        G = 1
+        B = 166
+        }
+      }
+    CONTROLPOINT 7
+      {
+      COLORMAPFRACTION = 1
+      LEADRGB
+        {
+        R = 13
+        G = 8
+        B = 135
+        }
+      TRAILRGB
+        {
+        R = 13
+        G = 8
+        B = 135
+        }
+      }
+    }

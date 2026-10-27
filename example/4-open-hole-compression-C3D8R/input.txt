@@ -1,0 +1,8 @@
+len_x_plate     60.0
+len_y_plate     100.0
+thk_z_plate     4.0
+xr_hole_center  0.5
+yr_hole_center  0.5
+r_hole          10.0
+strain(y)       -0.001
+index_layup     0
