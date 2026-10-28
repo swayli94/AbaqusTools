@@ -85,7 +85,7 @@ AbaqusTools addresses these challenges by providing intuitive Python classes and
 Clone this repository together with its submodules:
 
 ```bash
-git clone --recurse-submodules --shallow-submodules https://github.com/your-username/AbaqusTools.git
+git clone --recurse-submodules --shallow-submodules https://github.com/swayli94/AbaqusTools.git
 cd AbaqusTools
 # Add to your Python path or install as needed
 ```
